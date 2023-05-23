@@ -1,9 +1,8 @@
 ﻿using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Nostreets.Extensions.Extend.Basic;
-using Nostreets.Extensions.Extend.Core.Config;
 using System.Collections.Specialized;
-
+using Nostreets.Extensions.Core.Extend;
 
 namespace Nostreets.Extensions.Utilities.Managers.Core
 {

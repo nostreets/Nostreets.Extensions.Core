@@ -1,6 +1,9 @@
 ﻿using Hangfire;
 
+using Microsoft.AspNetCore.Builder.Extensions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -35,6 +38,7 @@ using System.Web.Optimization;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using System.Net.Http.Formatting;
 
 namespace Nostreets.Extensions.Extend.Web
 {
@@ -98,6 +102,26 @@ namespace Nostreets.Extensions.Extend.Web
                 else
                     appSettings[key] = value;
             }
+        }
+
+        public static HttpResponseMessage CreateResponse(HttpStatusCode statusCode)
+        {
+            HttpResponseMessage response = new HttpResponseMessage();
+            response.StatusCode = statusCode;
+            return response;
+        }
+
+
+        public static HttpResponseMessage CreateResponse<T>(HttpStatusCode statusCode, T value, MediaTypeFormatter formater = null, string contentType = "application/json")
+        {
+            if (formater == null)
+                formater = new JsonMediaTypeFormatter();
+
+            var response = CreateResponse(statusCode);
+
+            response.Content = new ObjectContent<T>(value, formater, contentType);
+
+            return response;
         }
         #endregion
 
@@ -452,7 +476,13 @@ namespace Nostreets.Extensions.Extend.Web
         /// <returns></returns>
         public static string GetIPAddress(this HttpContext context)
         {
-            return context.Connection.RemoteIpAddress.ToString();
+            string remoteIpAddress = context.Session.GetString("IPAddress");
+            if (remoteIpAddress == null)
+            {
+                remoteIpAddress = context.Connection.RemoteIpAddress.ToString();
+                context.Session.SetString("IPAddress", remoteIpAddress);
+            }
+            return remoteIpAddress;
         }
 
         /// <summary>
@@ -471,11 +501,9 @@ namespace Nostreets.Extensions.Extend.Web
         /// <returns></returns>
         public static string GetIPAddressViaDns(this HttpContext context)
         {
-            string result = null;
-
             string hostName = Dns.GetHostName();
             IPHostEntry ipEntry = Dns.GetHostEntry(hostName);
-            result = ipEntry.AddressList[ipEntry.AddressList.Length - 1].ToString();
+            string result = ipEntry.AddressList[ipEntry.AddressList.Length - 1].ToString();
 
             return result;
         }
@@ -925,6 +953,12 @@ namespace Nostreets.Extensions.Extend.Web
 
             return false;
         }
+
+        public static Uri RequestUrl(this HttpRequest request) 
+        {
+            return new Uri(request.GetDisplayUrl());
+        }
+
         #endregion
     }
 }

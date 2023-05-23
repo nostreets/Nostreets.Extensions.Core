@@ -248,22 +248,22 @@ namespace Nostreets.Extensions.Utilities
             const BindingFlags memberInfoBinding = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
 
             if (classPart == ClassTypes.Any || classPart == ClassTypes.Type)
-                foreach (TAttribute attr in typeToScan.GetCustomAttributes(typeof(TAttribute), false))
+                foreach (TAttribute attr in typeToScan.GetCustomAttributes(typeof(TAttribute)))
                     Add(attr, typeToScan, typeToScan, typeToScan.Assembly);
 
             foreach (MemberInfo member in typeToScan.GetMembers(memberInfoBinding))
             {
                 if (member.MemberType == MemberTypes.Property && (classPart == ClassTypes.Properties | classPart == ClassTypes.Any))
-                    foreach (TAttribute attr in member.GetCustomAttributes(typeof(TAttribute), false))
+                    foreach (TAttribute attr in member.GetCustomAttributes(typeof(TAttribute)))
                         Add(attr, member, typeToScan, typeToScan.Assembly);
 
                 if (member.MemberType == MemberTypes.Method && (classPart == ClassTypes.Methods | classPart == ClassTypes.Any))
-                    foreach (TAttribute attr in member.GetCustomAttributes(typeof(TAttribute), false))
+                    foreach (TAttribute attr in member.GetCustomAttributes(typeof(TAttribute)))
                         Add(attr, member, typeToScan, typeToScan.Assembly);
 
                 if (member.MemberType == MemberTypes.Method && (classPart == ClassTypes.Parameters | classPart == ClassTypes.Any))
                     foreach (ParameterInfo parameter in ((MethodInfo)member).GetParameters())
-                        foreach (TAttribute attr in parameter.GetCustomAttributes(typeof(TAttribute), false))
+                        foreach (TAttribute attr in parameter.GetCustomAttributes(typeof(TAttribute)))
                             Add(attr, parameter, typeToScan, typeToScan.Assembly);
             }
         }
@@ -282,7 +282,7 @@ namespace Nostreets.Extensions.Utilities
                 else if (!shouldSkip)
                 {
                     if (classPart == ClassTypes.Any || classPart == ClassTypes.Assembly)
-                        foreach (TAttribute attr in assembly.GetCustomAttributes(typeof(TAttribute), false))
+                        foreach (TAttribute attr in assembly.GetCustomAttributes(typeof(TAttribute)))
                             Add(attr, assembly, typeof(Assembly), assembly);
 
                     foreach (Type type in assembly.GetTypes())

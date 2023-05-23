@@ -1,7 +1,9 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+
 using Nostreets.Extensions.Utilities;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -1109,7 +1111,7 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <param name="types">The types.</param>
         /// <param name="searchSettings">The search settings.</param>
         /// <returns></returns>
-        public static MethodInfo GetMethod(this object obj, string methodName, Type[] types = null, BindingFlags searchSettings = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)
+        public static MethodInfo GetMethod(this object obj, string methodName, Type[] types = null, Type[] generics = null, BindingFlags searchSettings = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)
         {
             return obj.GetType().GetMethod(methodName, searchSettings, Type.DefaultBinder, types ?? new Type[] { }, null);
         }
@@ -1119,12 +1121,82 @@ namespace Nostreets.Extensions.Extend.Basic
         /// </summary>
         /// <param name="type">The type.</param>
         /// <param name="methodName">Name of the method.</param>
-        /// <param name="types">The types.</param>
+        /// <param name="paramTypes">The types.</param>
         /// <param name="searchSettings">The search settings.</param>
         /// <returns></returns>
-        public static MethodInfo GetMethod(this Type type, string methodName, Type[] types = null, BindingFlags searchSettings = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)
+        public static MethodInfo GetMethod(this Type type, string methodName, Type[] paramTypes = null, Type[] generics = null, BindingFlags searchSettings = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static)
         {
-            return type.GetMethod(methodName, searchSettings, Type.DefaultBinder, types ?? new Type[] { }, null);
+            try
+            {
+                return type.GetMethod(methodName, searchSettings, Type.DefaultBinder, paramTypes ?? new Type[] { }, null);
+            }
+            catch (AmbiguousMatchException ex)
+            {
+                //In Deepth Scan
+                MethodInfo result = null;
+                var methods = type.GetMethods(searchSettings);
+                foreach (var method in methods)
+                {
+                    bool match = true;
+                    if (method.Name == methodName)
+                    {
+                        if (generics != null)
+                        {
+                            var isGeneric = method.IsGenericMethod;
+                            if (isGeneric)
+                            {
+                                var genericArguements = method.GetGenericArguments();
+                                if (genericArguements.Length == generics.Length)
+                                {
+                                    //Check Generic Type against genrics params
+                                    for (var i = 0; i < genericArguements.Length; i++)
+                                    {
+                                        var arguement = genericArguements[i];
+                                        if (arguement.BaseType != null)
+                                        {
+                                            var genericType = generics[i];
+                                            var arguementIsInterface = arguement.BaseType.IsInterface;
+
+                                            if (arguementIsInterface ? !genericType.HasInterface(arguement.BaseType) : arguement.BaseType != genericType.BaseType)
+                                                match = false;
+                                        }
+                                    }
+                                }
+                                else
+                                    match = false;
+                            }
+                            else
+                                match = false;
+                        }
+
+                        var parameters = method.GetParameters();
+                        if (parameters.Length == paramTypes.Length)
+                        {
+                            for (var i = 0; i < parameters.Length; i++)
+                            {
+                                var parameter = parameters[i];
+                                var targetType = paramTypes[i];
+                                var propIsInterface = parameter.ParameterType.IsInterface;
+
+                                if (propIsInterface ? !targetType.HasInterface(parameter.ParameterType) : parameter.ParameterType != targetType)
+                                    match = false;
+                            }
+                        }
+                        else
+                            match = false;
+                    }
+                    else
+                        match = false;
+
+                    if (match)
+                    {
+                        result = method;
+                        break;
+                    }
+                }
+
+                return result;
+            }
         }
 
         /// <summary>
@@ -1858,15 +1930,25 @@ namespace Nostreets.Extensions.Extend.Basic
             bool isStatic = false;
 
             if (isExtension)
-                parameters = (object[])parameters.AddValues(obj);
+            {
+                var paramList = parameters.ToList();
+                paramList.Insert(0, obj);
+                parameters = paramList.ToArray();
+            }
 
             if (methodHolder.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(methodHolder, methodName, parameters.Select(a => a.GetType()).ToArray())?.MakeGenericMethod(generics);
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            var methodInfo = GetMethod(methodHolder, methodName, paramTypes, generics);
+            var method = methodInfo?.MakeGenericMethod(generics);
+
             result = method?.Invoke((isStatic) ? null : obj, parameters);
+
             return result;
         }
+
+
 
         /// <summary>
         /// Intoes the generic method.
@@ -1887,7 +1969,8 @@ namespace Nostreets.Extensions.Extend.Basic
             if (obj.GetType().GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(obj.GetType(), methodName, parameters.Select(a => a.GetType()).ToArray())?.MakeGenericMethod(new Type[] { generic });
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(obj.GetType(), methodName, paramTypes)?.MakeGenericMethod(new Type[] { generic });
             result = method?.Invoke((isStatic) ? null : obj, parameters);
             return result;
         }
@@ -1908,7 +1991,8 @@ namespace Nostreets.Extensions.Extend.Basic
             if (methodHolder.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(methodHolder, methodName, parameters.Select(a => a.GetType()).ToArray())?.MakeGenericMethod(new Type[] { generic });
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(methodHolder, methodName, paramTypes)?.MakeGenericMethod(new Type[] { generic });
 
             result = method?.Invoke((isStatic) ? null : methodHolder.Instantiate(), parameters);
             return result;
@@ -1930,7 +2014,8 @@ namespace Nostreets.Extensions.Extend.Basic
             if (methodHolder.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(methodHolder, methodName, parameters.Select(a => a.GetType()).ToArray())?.MakeGenericMethod(generics);
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(methodHolder, methodName, paramTypes)?.MakeGenericMethod(generics);
 
             result = method?.Invoke((isStatic) ? null : methodHolder.Instantiate(), parameters);
             return result;
@@ -1959,7 +2044,8 @@ namespace Nostreets.Extensions.Extend.Basic
             if (methodHolder.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(methodHolder, methodName, parameters.Select(a => a.GetType()).ToArray());
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(methodHolder, methodName, paramTypes);
             result = method?.Invoke((isStatic) ? null : obj, parameters);
             return result;
         }
@@ -1983,7 +2069,8 @@ namespace Nostreets.Extensions.Extend.Basic
             if (type.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
                 isStatic = true;
 
-            MethodInfo method = GetMethod(type, methodName, parameters.Select(a => a.GetType()).ToArray());
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(type, methodName, paramTypes);
             result = method?.Invoke((isStatic) ? null : obj, parameters);
             return result;
         }
@@ -2100,7 +2187,8 @@ namespace Nostreets.Extensions.Extend.Basic
             }
         }
 
-        public static bool IsString(this object obj) { 
+        public static bool IsString(this object obj)
+        {
             Type nnType = Nullable.GetUnderlyingType(obj.GetType()) ?? obj.GetType();
             return nnType == typeof(string) || nnType == typeof(char[]);
         }
@@ -3412,7 +3500,8 @@ namespace Nostreets.Extensions.Extend.Basic
             return false;
         }
 
-        public static bool IsFileLocked(this string path) {
+        public static bool IsFileLocked(this string path)
+        {
             return IsFileLocked(new FileInfo(path));
         }
 
@@ -3426,6 +3515,13 @@ namespace Nostreets.Extensions.Extend.Basic
                 expando.Add(propertyInfo.Name, currentValue);
             }
             return expando as ExpandoObject;
+        }
+
+        public static bool AreObjectsEqual<T>(this T obj1, T obj2)
+        {
+            var serializedObj1 = JsonConvert.SerializeObject(obj1);
+            var serializedObj2 = JsonConvert.SerializeObject(obj2);
+            return serializedObj1 == serializedObj2;
         }
 
         #endregion Extensions

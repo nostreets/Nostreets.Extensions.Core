@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+
+using Newtonsoft.Json;
+
 using Nostreets.Extensions.Extend.Basic;
 
 namespace Nostreets.Extensions.DataControl.Classes
@@ -41,15 +44,17 @@ namespace Nostreets.Extensions.DataControl.Classes
         public string Class { get; set; }
         public string Method { get; set; }
         public int Line { get; set; }
-        public Dictionary<string, string> Trace { get; set; }
+        public string SerializedTrace { get => Trace != null ? JsonConvert.SerializeObject(Trace) : null; }
+
+        
+        
         public string HelpLink { get; set; }
         [NotMapped]
-        public override string ModifiedUserId { get; set; }
-        [NotMapped]
-        public override bool IsDeleted { get; set; }
+        public override bool IsArchived { get; set; }
         [NotMapped]
         public override DateTime? DateModified { get; set; }
-
+        [NotMapped]
+        public Dictionary<string, string> Trace { get; set; }
 
         private string CombinedMessage(Exception ex)
         {

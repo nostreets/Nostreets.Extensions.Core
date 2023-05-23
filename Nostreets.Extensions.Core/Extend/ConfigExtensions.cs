@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 
-namespace Nostreets.Extensions.Extend.Core.Config
+namespace Nostreets.Extensions.Core.Extend
 {
     public static class ConfigExtensions
     {

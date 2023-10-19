@@ -19,6 +19,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web.WebPages;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
@@ -28,6 +29,39 @@ namespace Nostreets.Extensions.Extend.Basic
     public static class Basic
     {
         #region Static
+        public static string RandomNumber(int count)
+        {
+            Random random = new Random();
+            List<int> randomNumbers = new List<int>();
+
+            for (int i = 0; i < count; i++)
+                randomNumbers.Add(random.Next(0, 9));
+
+            return string.Join("", randomNumbers);
+        }
+
+        public static bool AreValuesEqual(object value1, object value2)
+        {
+            if (value1 == null && value2 == null)
+                return true;
+
+            if (value1 == null || value2 == null)
+                return false;
+
+            var settings = new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            };
+
+            return JsonConvert.SerializeObject(value1, settings) == JsonConvert.SerializeObject(value2, settings);
+        }
+
+        public static IEnumerable<T> GetEnumList<T>() where T : Enum
+        {
+            var vals = Enum.GetValues(typeof(T));
+            var list = Enumerable.Cast<T>(vals);
+            return list;
+        }
 
         public static Assembly GetAssembly(this string assemblyName)
         {
@@ -1544,6 +1578,16 @@ namespace Nostreets.Extensions.Extend.Basic
             return _gc.GetWeekOfYear(time, CalendarWeekRule.FirstDay, DayOfWeek.Sunday);
         }
 
+        public static int GetQuarter(this DateTime dateTime)
+        {
+            return (dateTime.Month - 1) / 3 + 1;
+        }
+
+        public static int GetHalfYear(this DateTime dateTime)
+        {
+            return dateTime.Month >= 6 ? 1 : 2;
+        }
+
         /// <summary>
         /// Determines whether this instance has attribute.
         /// </summary>
@@ -1555,7 +1599,7 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <exception cref="InvalidDataException">T must have a base Type of Attribute...</exception>
         public static bool HasAttribute<T>(this PropertyInfo prop)
         {
-            if (typeof(T).IsSubclassOf(typeof(Attribute)))
+            if (!typeof(Attribute).IsAssignableFrom(typeof(T)))
                 throw new InvalidDataException("T must have a base Type of Attribute...");
 
             return prop.GetCustomAttribute(typeof(T)) == null ? false : true;
@@ -1790,15 +1834,28 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <summary>
         /// Determines whether the specified property has property.
         /// </summary>
+        /// <param name="type">The type.</param>
+        /// <param name="prop">The property.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified property has property; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool HasProperty(this Type type, string propName)
+        {
+            return type.GetProperties().FirstOrDefault(a => a.Name == propName) == null ? false : true;
+        }
+
+        /// <summary>
+        /// Determines whether the specified property has property.
+        /// </summary>
         /// <param name="obj">The type.</param>
         /// <param name="prop">The property name.</param>
         /// <returns>
         ///   <c>true</c> if the specified property has property; otherwise, <c>false</c>.
         /// </returns>
-        public static bool HasProperty(this object obj, string prop)
+        public static bool HasProperty(this object obj, string propName)
         {
             Type type = obj.GetType() == typeof(Type) ? (Type)obj : obj.GetType();
-            return type.GetProperties().FirstOrDefault(a => a.Name == prop) == null ? false : true;
+            return type.GetProperties().FirstOrDefault(a => a.Name == propName) == null ? false : true;
         }
 
         /// <summary>
@@ -2047,6 +2104,42 @@ namespace Nostreets.Extensions.Extend.Basic
             var paramTypes = parameters.Select(a => a.GetType()).ToArray();
             MethodInfo method = GetMethod(methodHolder, methodName, paramTypes);
             result = method?.Invoke((isStatic) ? null : obj, parameters);
+            return result;
+        }
+
+        /// <summary>
+        /// Intoes the method.
+        /// </summary>
+        /// <param name="obj">The object.</param>
+        /// <param name="methodName">Name of the method.</param>
+        /// <param name="parameters">The parameters.</param>
+        /// <returns></returns>
+        public static async Task<object> IntoMethodAsync(this object obj, string methodName, params object[] parameters)
+        {
+            if (obj == null)
+                return null;
+
+            object result = null;
+            bool isStatic = false;
+            Type type = obj as Type ?? obj.GetType();
+
+            if (type.GetMethods(BindingFlags.Static | BindingFlags.Public).Any(a => a.Name == methodName))
+                isStatic = true;
+
+            var paramTypes = parameters.Select(a => a.GetType()).ToArray();
+            MethodInfo method = GetMethod(type, methodName, paramTypes);
+            if (method != null)
+            {
+                if (method.ReturnType == typeof(Task))
+                {
+                    await (Task)method.Invoke((isStatic) ? null : obj, parameters);
+                }
+                else
+                {
+                    result = await (dynamic)method.Invoke((isStatic) ? null : obj, parameters);
+                }
+            }
+
             return result;
         }
 
@@ -2387,14 +2480,18 @@ namespace Nostreets.Extensions.Extend.Basic
             Debug.Write(txt + Environment.NewLine);
         }
 
+
         /// <summary>
         /// Maps the properties.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="obj">The object.</param>
         /// <param name="target">The target.</param>
-        public static void MapProperties<T>(this object obj, ref T target) where T : new()
+        public static void MapProperties<T>(this object obj, ref T target, Dictionary<string, string> mapper = null) where T : new()
         {
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj));
+
             if (target == null)
                 target = new T();
 
@@ -2405,9 +2502,14 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 foreach (PropertyInfo prop in curProps)
                 {
-                    PropertyInfo newProp = targetProps.FirstOrDefault(a => a.Name == prop.Name && a.PropertyType == prop.PropertyType);
-                    if (newProp != null)
-                        target.SetPropertyValue(prop.Name, newProp);
+                    PropertyInfo getProp(string propName) => targetProps.FirstOrDefault(a => a.Name == propName && a.PropertyType == prop.PropertyType);
+                    var targetProp = getProp(prop.Name);
+
+                    if (targetProp == null && mapper != null && mapper.ContainsKey(prop.Name))
+                        targetProp = getProp(mapper[prop.Name]);
+
+                    if (targetProp != null)
+                        target.SetPropertyValue(prop.Name, obj.GetPropertyValue(targetProp.Name));
                 }
             }
             else
@@ -2425,6 +2527,56 @@ namespace Nostreets.Extensions.Extend.Basic
                 target = someObject;
             }
         }
+
+        /// <summary>
+        /// Maps the properties.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj">The object.</param>
+        /// <param name="target">The target.</param>
+        public static T MapProperties<T>(this object obj, Dictionary<string, string> mapper = null) where T : new()
+        {
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj));
+
+            var target = new T();
+
+            if (obj.GetType() != typeof(Dictionary<string, object>))
+            {
+                PropertyInfo[] curProps = obj.GetType() == typeof(Type) ? ((Type)obj).GetProperties() : obj.GetType().GetProperties();
+                PropertyInfo[] targetProps = target.GetType().GetProperties();
+
+                foreach (PropertyInfo prop in curProps)
+                {
+                    PropertyInfo getProp(string propName) => targetProps.FirstOrDefault(a => a.Name == propName && a.PropertyType == prop.PropertyType);
+                    var targetProp = getProp(prop.Name);
+
+                    if (targetProp == null && mapper != null && mapper.ContainsKey(prop.Name))
+                        targetProp = getProp(mapper[prop.Name]);
+
+                    if (targetProp != null)
+                        target.SetPropertyValue(prop.Name, obj.GetPropertyValue(targetProp.Name));
+                }
+            }
+            else
+            {
+                var someObject = new T();
+                var someObjectType = someObject.GetType();
+
+                foreach (var item in (Dictionary<string, object>)obj)
+                {
+                    someObjectType
+                             .GetProperty(item.Key)
+                             .SetValue(someObject, item.Value, null);
+                }
+
+                target = someObject;
+            }
+
+            return target;
+        }
+
+
 
         /// <summary>
         /// Names the with parameters.
@@ -2587,6 +2739,8 @@ namespace Nostreets.Extensions.Extend.Basic
         {
             return ran.Next(min, max);
         }
+
+        
 
         /// <summary>
         /// Randoms the string.
@@ -3470,6 +3624,7 @@ namespace Nostreets.Extensions.Extend.Basic
                 from item in source
                 select Task.Run(() => body(item)));
         }
+
         public static IEnumerable<List<T>> SplitList<T>(this List<T> list, int nSize = 25)
         {
             for (int i = 0; i < list.Count; i += nSize)
@@ -3519,10 +3674,280 @@ namespace Nostreets.Extensions.Extend.Basic
 
         public static bool AreObjectsEqual<T>(this T obj1, T obj2)
         {
-            var serializedObj1 = JsonConvert.SerializeObject(obj1);
-            var serializedObj2 = JsonConvert.SerializeObject(obj2);
+            var settings = new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            };
+
+            var serializedObj1 = JsonConvert.SerializeObject(obj1, settings);
+            var serializedObj2 = JsonConvert.SerializeObject(obj2, settings);
+
             return serializedObj1 == serializedObj2;
         }
+
+        public static bool IsEmail(this string email)
+        {
+            var trimmedEmail = email.Trim();
+
+            if (!trimmedEmail.Contains("@") || !trimmedEmail.Contains("."))
+                return false;
+
+            if (trimmedEmail.EndsWith("."))
+                return false;
+
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == trimmedEmail;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool IsPhoneNumber(this string number)
+        {
+            return Regex.Match(number, @"^(\+[0-9]{9})$").Success;
+        }
+
+        public static T CastViaReflection<T>(this object obj)
+        {
+            if (obj is null)
+            {
+                return default;
+            }
+
+            var result = Activator.CreateInstance<T>();
+            var properties = typeof(T).GetProperties();
+
+            foreach (var property in properties)
+            {
+                if (property.CanWrite)
+                {
+                    var propertyValue = GetPropertyValue(obj, property.Name);
+                    if (propertyValue != null && property.PropertyType.IsAssignableFrom(propertyValue.GetType()))
+                    {
+                        property.SetValue(result, propertyValue);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public static bool IsAlphanumeric(this string input)
+        {
+            Regex regex = new Regex("^[a-zA-Z0-9]+$");
+            return regex.IsMatch(input);
+        }
+
+        public static string SplitCamelCase(this string input)
+        {
+            return input == null ? null : Regex.Replace(input, "([A-Z])", " $1", RegexOptions.Compiled).Trim();
+        }
+
+        public static int[] GetQuarterMonths(this DateTime dateTime)
+        {
+            int quarter = (dateTime.Month - 1) / 3 + 1;
+            int startMonth = (quarter - 1) * 3 + 1;
+
+            int[] months = new int[3];
+            for (int i = 0; i < 3; i++)
+            {
+                months[i] = startMonth + i;
+            }
+
+            return months;
+        }
+
+        public static DateTime AsDateTime(this DateOnly date, TimeOnly? time = null) 
+        {
+            return new DateTime(date.Year, date.Month, date.Day, time?.Hour ?? 0, time?.Minute ?? 0, time?.Second ?? 0);
+        }
+
+        public static bool TryParseJson<T>(this string @this, out T result)
+        {
+            bool success = true;
+            var settings = new JsonSerializerSettings
+            {
+                Error = (sender, args) => { success = false; args.ErrorContext.Handled = true; },
+                MissingMemberHandling = MissingMemberHandling.Error
+            };
+            result = JsonConvert.DeserializeObject<T>(@this, settings);
+            return success;
+        }
+
+        public static string GetName(this object obj) => obj.GetType().Name;
+
+        public static DateTime GetNextQuarterHrTime(this DateTime currentTime)
+        {
+            DateTime nextTime;
+            int minutes = currentTime.Minute;
+
+            if (minutes < 15)
+            {
+                nextTime = currentTime.Date.AddHours(currentTime.Hour).AddMinutes(15);
+            }
+            else if (minutes < 30)
+            {
+                nextTime = currentTime.Date.AddHours(currentTime.Hour).AddMinutes(30);
+            }
+            else if (minutes < 45)
+            {
+                nextTime = currentTime.Date.AddHours(currentTime.Hour).AddMinutes(45);
+            }
+            else
+            {
+                nextTime = currentTime.Date.AddHours(currentTime.Hour + 1).AddMinutes(0);
+            }
+
+            return nextTime;
+        }
+
+        public static TimeOnly ToTimeOnly(this TimeSpan timeSpan)
+        {
+            return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+        }
+
+        public static DateTime GetStartOfWeek(this DateTime date) => date.AddDays(-(int)date.DayOfWeek);
+
+        public static DateTime GetEndOfWeek(this DateTime date) => GetStartOfWeek(date).AddDays(6);
+
+        public static DateTime GetStartOfMonth(this DateTime date) => new DateTime(date.Year, date.Month, 1);
+
+        public static DateTime GetEndOfMonth(this DateTime date) => GetStartOfMonth(date).AddMonths(1).AddDays(-1);
+
+        public static DateTime GetStartOfQuarter(this DateTime date) => new DateTime(date.Year, ((date.Month - 1) / 3) * 3 + 1, 1);
+
+        public static DateTime GetEndOfQuarter(this DateTime date) => GetStartOfQuarter(date).AddMonths(3).AddDays(-1);
+
+        public static DateTime GetStartOfHalfYear(this DateTime date) => new DateTime(date.Year, (date.Month <= 6) ? 1 : 7, 1);
+
+        public static DateTime GetEndOfHalfYear(this DateTime date) => GetStartOfHalfYear(date).AddMonths(6).AddDays(-1);
+
+        public static DateTime GetStartOfYear(this DateTime date) => new DateTime(date.Year, 1, 1);
+
+        public static DateTime GetEndOfYear(this DateTime date) => GetStartOfYear(date).AddYears(1).AddDays(-1);
+
+        public static string GetDaySuffix(this DateTime date)
+        {
+            var day = date.Day;
+            if (day >= 11 && day <= 13)
+                return "th";
+
+            switch (day % 10)
+            {
+                case 1: return "st";
+                case 2: return "nd";
+                case 3: return "rd";
+                default: return "th";
+            }
+        }
+
+        public static bool ContainsHTML(this string checkString)
+        {
+            return Regex.IsMatch(checkString, "<(.|\n)*?>");
+        }
+
+        public static int GetOccurrenceInQuarter(this DateTime date)
+        {
+            // Get the quarter (1, 2, 3, or 4) of the date
+            int quarter = (date.Month - 1) / 3 + 1;
+
+            // Get the total days in the quarter
+            int totalDaysInQuarter = DateTime.DaysInMonth(date.Year, quarter * 3);
+
+            // Get the occurrence (1st, 2nd, 3rd, or 4th) of the day in the quarter
+            int occurrence = (date.Day - 1) / 7 + 1;
+
+            // If the day is in the last week of the quarter, it might belong to the next quarter
+            if (date.AddDays(7).Month != date.Month && occurrence != 1)
+            {
+                // Adjust the occurrence to the last week of the quarter
+                occurrence = (totalDaysInQuarter - date.Day) / 7 + 1;
+            }
+
+            return occurrence;
+        }
+
+        public static int GetOccurrenceInHalfYear(this DateTime date)
+        {
+            // Get the half year (1 or 2) of the date
+            int halfYear = date.Month <= 6 ? 1 : 2;
+
+            // Get the total days in the half year
+            int totalDaysInHalfYear = DateTime.DaysInMonth(date.Year, halfYear * 6);
+
+            // Get the occurrence (1st, 2nd, or 3rd) of the day in the half year
+            int occurrence = (date.Day - 1) / 7 + 1;
+
+            // If the day is in the last week of the half year, it might belong to the next half year
+            if (date.AddDays(7).Month != date.Month && occurrence != 1)
+            {
+                // Adjust the occurrence to the last week of the half year
+                occurrence = (totalDaysInHalfYear - date.Day) / 7 + 1;
+            }
+
+            return occurrence;
+        }
+
+        public static int GetOccurrenceInYear(this DateTime date)
+        {
+            // Get the total days in the year
+            int totalDaysInYear = DateTime.IsLeapYear(date.Year) ? 366 : 365;
+
+            // Get the occurrence (1st, 2nd, 3rd, or 4th) of the day in the year
+            int occurrence = (date.Day - 1) / 7 + 1;
+
+            // If the day is in the last week of the year, it might belong to the next year
+            if (date.AddDays(7).Year != date.Year && occurrence != 1)
+            {
+                // Adjust the occurrence to the last week of the year
+                occurrence = (totalDaysInYear - date.Day) / 7 + 1;
+            }
+
+            return occurrence;
+        }
+
+        public static string GetOrdinalNumber(this int number, bool useSuffix)
+        {
+            if (useSuffix)
+            {
+                if (number >= 11 && number <= 13)
+                {
+                    return number.ToString() + "th";
+                }
+                switch (number % 10)
+                {
+                    case 1:
+                        return number.ToString() + "st";
+                    case 2:
+                        return number.ToString() + "nd";
+                    case 3:
+                        return number.ToString() + "rd";
+                    default:
+                        return number.ToString() + "th";
+                }
+            }
+            else
+            {
+                return number.ToString();
+            }
+        }
+
+
+        public static T Clone<T>(this object obj, bool ignoreReferenceLoopHandling = true)
+        {
+            var settings = new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = ignoreReferenceLoopHandling ? ReferenceLoopHandling.Ignore : ReferenceLoopHandling.Serialize
+            };
+
+            var seliarzedObj = JsonConvert.SerializeObject(obj, settings);
+            return JsonConvert.DeserializeObject<T>(seliarzedObj, settings);
+        }
+
 
         #endregion Extensions
     }

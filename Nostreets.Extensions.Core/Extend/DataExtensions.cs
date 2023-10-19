@@ -17,6 +17,8 @@ using Nostreets.Extensions.Utilities;
 using System.Data.OleDb;
 using System.Data.Entity.Infrastructure;
 using System.Data.Entity;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Nostreets.Extensions.Extend.Data
 {
@@ -127,7 +129,7 @@ namespace Nostreets.Extensions.Extend.Data
         public static List<string> GetColumns(this DbContext dbContext, Type type)
         {
             string statment = String.Format("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME like N'{0}s'", type.Name);
-            DbRawSqlQuery<string> result = dbContext.Database.SqlQuery<string>(statment); 
+            DbRawSqlQuery<string> result = dbContext.Database.SqlQuery<string>(statment);
             return result.ToList();
         }
 
@@ -504,7 +506,6 @@ namespace Nostreets.Extensions.Extend.Data
             return result;
         }
 
-
         /// <summary>
         /// Gets the schema.
         /// </summary>
@@ -839,6 +840,77 @@ namespace Nostreets.Extensions.Extend.Data
 
             return result;
         }
+
+        public static string GetSqlType(this Type type, bool isKey = false)
+        {
+            if (type == typeof(int))
+                return "INT";
+            else if (type == typeof(string))
+            {
+                if (isKey)
+                    return "NVARCHAR(450)";
+                else
+                    return "VARCHAR(MAX)";
+            }
+            else if (type == typeof(long))
+                return "BIGINT";
+            else if (type == typeof(short))
+                return "SMALLINT";
+            else if (type == typeof(byte))
+                return "TINYINT";
+            else if (type == typeof(float))
+                return "FLOAT";
+            else if (type == typeof(double))
+                return "DOUBLE";
+            else if (type == typeof(decimal))
+                return "DECIMAL(18, 2)";
+            else if (type == typeof(bool))
+                return "BIT";
+            else if (type == typeof(DateOnly))
+                return "DATE";
+            else if (type == typeof(DateTime))
+                return "DATETIME";
+            else if (type == typeof(DateTimeOffset))
+                return "DATETIMEOFFSET";
+            else if (type == typeof(TimeOnly))
+                return "TIME";
+            else if (type == typeof(TimeSpan))
+                return "TIME";
+            else if (type == typeof(Guid))
+                return "UNIQUEIDENTIFIER";
+            else if (type == typeof(byte[]))
+                return "VARBINARY(MAX)";
+            else if (type == typeof(char))
+                return "CHAR(1)";
+            else if (type.IsEnum)
+                return "INT"; // Assuming the enum values are stored as integers
+            else if (Nullable.GetUnderlyingType(type) != null)
+                return GetSqlType(Nullable.GetUnderlyingType(type));
+            // Add more supported types as needed
+
+            throw new NotSupportedException($"SQL type mapping not defined for {type.Name}.");
+        }
+
+        public static bool MatchDotNetToSqlType(this Type propType, string sqlGeneralType)
+        {
+            sqlGeneralType = sqlGeneralType.ToUpper();
+            Type realPropType = !propType.IsEnum ? propType : Enum.GetUnderlyingType(propType);
+            string sqlTranslatorValue = realPropType.GetSqlType();
+            sqlTranslatorValue = sqlTranslatorValue.Contains('(') ? sqlTranslatorValue.Split('(')[0] : sqlTranslatorValue;
+
+            sqlGeneralType = sqlGeneralType switch
+            {
+                "NVARCHAR" => "VARCHAR",
+                "DATETIME2" => "DATETIME",
+                _ => sqlGeneralType
+            };
+
+            return sqlGeneralType == sqlTranslatorValue;
+        }
+
+        public static DateOnly ToDateOnly(this DateTime dateTime) => new DateOnly(dateTime.Year, dateTime.Month, dateTime.Day);
+
+        public static TimeOnly ToTimeOnly(this DateTime dateTime) => new TimeOnly(dateTime.Hour, dateTime.Minute, dateTime.Second, dateTime.Millisecond, dateTime.Microsecond);
 
         #endregion
 

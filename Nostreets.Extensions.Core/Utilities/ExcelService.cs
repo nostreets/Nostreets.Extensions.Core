@@ -47,7 +47,7 @@ namespace Nostreets.Extensions.Utilities
 
         private IDBService<Error> _errorLog = null;
         private string _lastQueryExcuted = null;
-        private List<EntityMap> _mappedEntities = null;
+        private List<ComplexClassMap> _mappedEntities = null;
 
         private Dictionary<string, string> _partialProcs = null,
                                            _procTemplates = null;
@@ -63,7 +63,7 @@ namespace Nostreets.Extensions.Utilities
 
         private void SetUpMappedTypes()
         {
-            List<EntityMap> result = new List<EntityMap>();
+            List<ComplexClassMap> result = new List<ComplexClassMap>();
 
             MapType(_type, ref result);
 
@@ -215,7 +215,7 @@ namespace Nostreets.Extensions.Utilities
             }
         }
 
-        private void MapCollection(Type collection, ref List<EntityMap> entities, Type parent, string collectionName)
+        private void MapCollection(Type collection, ref List<ComplexClassMap> entities, Type parent, string collectionName)
         {
             Func<Type, EntityColumn[]> getColumns = (a) =>
             {
@@ -237,7 +237,7 @@ namespace Nostreets.Extensions.Utilities
                 return list.ToArray();
             };
 
-            entities.Add(new EntityMap(
+            entities.Add(new ComplexClassMap(
                         collection
                         , new EntityTable(parent.Name + "_" + collectionName + "_" + GetTableName(collection))
                         , getColumns(collection)
@@ -250,7 +250,7 @@ namespace Nostreets.Extensions.Utilities
                         , collectionName + collection.Name));
         }
 
-        private void MapType(Type type, ref List<EntityMap> entities)
+        private void MapType(Type type, ref List<ComplexClassMap> entities)
         {
             PropertyInfo[] relations = type.GetProperties().Where(a => !a.PropertyType.IsEnum && ShouldNormalize(a.PropertyType)).ToArray(),
                            notMappedProps = GetPropsByAttribute<NotMappedAttribute>(type).ToArray();
@@ -302,7 +302,7 @@ namespace Nostreets.Extensions.Utilities
                 return list.ToArray();
             };
 
-            entities.Add(new EntityMap(
+            entities.Add(new ComplexClassMap(
                           type
                         , new EntityTable(GetTableName(type))
                         , getColumns()

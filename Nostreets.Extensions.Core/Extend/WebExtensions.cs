@@ -39,6 +39,8 @@ using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 using System.Net.Http.Formatting;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Nostreets.Extensions.Extend.Web
 {
@@ -959,6 +961,18 @@ namespace Nostreets.Extensions.Extend.Web
             return new Uri(request.GetDisplayUrl());
         }
 
+        public static string GetCookieValue(this HttpResponse response, string cookieName)
+        {
+            foreach (var headers in response.Headers.Values)
+                foreach (var header in headers)
+                    if (header.StartsWith($"{cookieName}="))
+                    {
+                        var p1 = header.IndexOf('=');
+                        var p2 = header.IndexOf(';');
+                        return header.Substring(p1 + 1, p2 - p1 - 1);
+                    }
+            return null;
+        }
         #endregion
     }
 }

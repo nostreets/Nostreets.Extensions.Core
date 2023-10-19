@@ -5,10 +5,10 @@ using System.Xml.Serialization;
 namespace Nostreets.Extensions.Helpers.Data.QueryProvider
 {
     [Serializable(), XmlRoot(Namespace = "", IsNullable = false, ElementName = "Entity")]
-    public class EntityMap
+    public class ComplexClassMap
     {
-        public EntityMap() { }
-        public EntityMap(Type type, EntityTable table, EntityColumn[] column, EntityAssociation[] association, string id)
+        public ComplexClassMap() { }
+        public ComplexClassMap(Type type, EntityTable table, EntityColumn[] column, EntityAssociation[] association, string id)
         {
             Table = table ?? throw new ArgumentNullException(nameof(table));
             Columns = column ?? throw new ArgumentNullException(nameof(column));

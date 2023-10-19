@@ -8,14 +8,13 @@ using Nostreets.Extensions.Extend.Basic;
 
 namespace Nostreets.Extensions.DataControl.Classes
 {
-
     public class Error : DBObject
     {
         public Error() { }
 
         public Error(Exception ex)
         {
-            Message = CombinedMessage(ex);
+            ErrorMessage = CombinedMessage(ex);
             DateCreated = DateTime.Now;
             Source = ex.Source;
             HelpLink = ex.HelpLink;
@@ -27,7 +26,7 @@ namespace Nostreets.Extensions.DataControl.Classes
 
         public Error(Exception ex, string data)
         {
-            Message = CombinedMessage(ex);
+            ErrorMessage = CombinedMessage(ex);
             DateCreated = DateTime.Now;
             Source = ex.Source;
             HelpLink = ex.HelpLink;
@@ -38,8 +37,9 @@ namespace Nostreets.Extensions.DataControl.Classes
             Data = data;
         }
 
-        public string Data { get; set; }
-        public string Message { get; set; }
+        public string? SessionKey { get; set; }
+        public string? Data { get; set; }
+        public string ErrorMessage { get; set; }
         public string Source { get; set; }
         public string Class { get; set; }
         public string Method { get; set; }
@@ -52,7 +52,7 @@ namespace Nostreets.Extensions.DataControl.Classes
         [NotMapped]
         public override bool IsArchived { get; set; }
         [NotMapped]
-        public override DateTime? DateModified { get; set; }
+        public override DateTime DateModified { get; set; }
         [NotMapped]
         public Dictionary<string, string> Trace { get; set; }
 

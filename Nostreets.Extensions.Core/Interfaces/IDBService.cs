@@ -5,88 +5,95 @@ namespace Nostreets.Extensions.Interfaces
 {
     public interface IDBService
     {
-        List<object> GetAll();
-        object Get(object id);
-        object Get(object id, Converter<object, object> converter);
-        object Insert(object model);
-        object Insert(object model, Converter<object, object> converter);
-        object[] Insert(IEnumerable<object> collection);
-        object[] Insert(IEnumerable<object> collection, Converter<object, object> converter);
-        void Update(IEnumerable<object> collection);
-        void Update(IEnumerable<object> collection, Converter<object, object> converter);
-        void Update(object model);
-        void Update(object model, Converter<object, object> converter);
-        void Delete(object id);
-        void Delete(IEnumerable<object> ids);
-        List<object> Where(Func<object, bool> predicate);
-        object FirstOrDefault(Func<object, bool> predicate);
-        List<dynamic> QueryResults(string query, Dictionary<string, object> parameters = null);
+        Task<List<object>> GetAll();
+        Task<object> Get(object id);
+        Task<object> Get(object id, Converter<object, object> converter);
+        Task Insert(object model);
+        Task Insert(object model, Converter<object, object> converter);
+        Task Insert(IEnumerable<object> collection);
+        Task Insert(IEnumerable<object> collection, Converter<object, object> converter);
+        Task Update(IEnumerable<object> collection);
+        Task Update(IEnumerable<object> collection, Converter<object, object> converter);
+        Task Update(object model);
+        Task Update(object model, Converter<object, object> converter);
+        Task Delete(object id);
+        Task Delete(IEnumerable<object> ids);
+        Task<List<object>> Where(Func<object, bool> predicate);
+        Task<object> FirstOrDefault(Func<object, bool> predicate);
+        Task<List<dynamic>> QueryResults(string query, Dictionary<string, object> parameters = null);
     }
 
 
     public interface IDBService<T>
     {
-        List<T> GetAll();
-        T Get(object id);
-        T Get(object id, Converter<T, T> converter);
-        object Insert(T model);
-        object Insert(T model, Converter<T, T> converter);
-        object[] Insert(IEnumerable<T> collection);
-        object[] Insert(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(IEnumerable<T> collection);
-        void Update(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(T model);
-        void Update(T model, Converter<T, T> converter);
-        void Delete(object id);
-        void Delete(IEnumerable<object> ids);
-        List<T> Where(Func<T, bool> predicate);
-        T FirstOrDefault(Func<T, bool> predicate);
-        void Backup(string disk = null);
-        List<TResult> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+        Task<List<T>> GetAll();
+        Task<T> Get(object id);
+        Task<T> Get(object id, Converter<T, T> converter);
+        Task Insert(T model);
+        Task Insert(T model, Converter<T, T> converter);
+        Task Insert(IEnumerable<T> collection);
+        Task Insert(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(IEnumerable<T> collection);
+        Task Update(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(T model);
+        Task Update(T model, Converter<T, T> converter);
+        Task Delete(object id);
+        Task Delete(IEnumerable<object> ids);
+        Task<List<T>> Where(Func<T, bool> predicate);
+        Task<T> FirstOrDefault(Func<T, bool> predicate);
+        Task Backup(string disk = null);
+        Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
     }
 
     public interface IDBService<T, IdType>
     {
-
-        List<T> GetAll();
-        T Get(IdType id);
-        T Get(IdType id, Converter<T, T> converter);
-        IdType Insert(T model);
-        IdType Insert(T model, Converter<T, T> converter);
-        IdType[] Insert(IEnumerable<T> collection);
-        IdType[] Insert(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(IEnumerable<T> collection);
-        void Update(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(T model);
-        void Update(T model, Converter<T, T> converter);
-        void Delete(IdType id);
-        List<T> Where(Func<T, bool> predicate);
-        void Delete(IEnumerable<IdType> ids);
-        T FirstOrDefault(Func<T, bool> predicate);
-        void Backup(string disk = null);
-        List<TResult> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+        Task<List<T>> GetAll();
+        Task<T> Get(IdType id);
+        Task<T> Get(IdType id, Converter<T, T> converter);
+        Task Insert(T model);
+        Task Insert(T model, Converter<T, T> converter);
+        Task Insert(IEnumerable<T> collection);
+        Task Insert(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(IEnumerable<T> collection);
+        Task Update(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(T model);
+        Task Update(T model, Converter<T, T> converter);
+        Task Delete(IdType id);
+        Task<List<T>> Where(Func<T, bool> predicate);
+        Task Delete(IEnumerable<IdType> ids);
+        Task<T> FirstOrDefault(Func<T, bool> predicate);
+        Task Backup(string disk = null);
+        Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
     }
 
     public interface IDBService<T, IdType, AddType, UpdateType>
     {
-        List<T> GetAll();
-        T Get(IdType id);
-        T Get(IdType id, Converter<T, T> converter);
-        IdType Insert(T model);
-        IdType Insert(T model, Converter<T, T> converter);
-        IdType Insert(AddType model, Converter<AddType, T> converter);
-        IdType[] Insert(IEnumerable<T> collection);
-        IdType[] Insert(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(IEnumerable<T> collection);
-        void Update(IEnumerable<T> collection, Converter<T, T> converter);
-        void Update(UpdateType model, Converter<UpdateType, T> converter);
-        void Update(T model);
-        void Update(T model, Converter<T, T> converter);
-        void Delete(IdType id);
-        void Delete(IEnumerable<IdType> ids);
-        List<T> Where(Func<T, bool> predicate);
-        T FirstOrDefault(Func<T, bool> predicate);
-        void Backup(string disk = null);
-        List<TResult> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+        Task<List<T>> GetAll();
+        Task<T> Get(IdType id);
+        Task<T> Get(IdType id, Converter<T, T> converter);
+        Task Insert(T model);
+        Task Insert(T model, Converter<T, T> converter);
+        Task Insert(AddType model, Converter<AddType, T> converter);
+        Task Insert(IEnumerable<T> collection);
+        Task Insert(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(IEnumerable<T> collection);
+        Task Update(IEnumerable<T> collection, Converter<T, T> converter);
+        Task Update(UpdateType model, Converter<UpdateType, T> converter);
+        Task Update(T model);
+        Task Update(T model, Converter<T, T> converter);
+        Task Delete(IdType id);
+        Task Delete(IEnumerable<IdType> ids);
+        Task<List<T>> Where(Func<T, bool> predicate);
+        Task<T> FirstOrDefault(Func<T, bool> predicate);
+        Task Backup(string disk = null);
+        Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+    }
+
+    public interface IBasicService
+    {
+        Task<object> Get(string id);
+        Task Insert(object model);
+        Task Update(object model);
+        Task Delete(string id);
     }
 }

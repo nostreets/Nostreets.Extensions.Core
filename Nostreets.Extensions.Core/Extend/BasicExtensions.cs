@@ -2480,7 +2480,6 @@ namespace Nostreets.Extensions.Extend.Basic
             Debug.Write(txt + Environment.NewLine);
         }
 
-
         /// <summary>
         /// Maps the properties.
         /// </summary>
@@ -2575,8 +2574,6 @@ namespace Nostreets.Extensions.Extend.Basic
 
             return target;
         }
-
-
 
         /// <summary>
         /// Names the with parameters.
@@ -3742,7 +3739,7 @@ namespace Nostreets.Extensions.Extend.Basic
             return regex.IsMatch(input);
         }
 
-        public static string SplitCamelCase(this string input)
+        public static string SpaceBetweenUpperCase(this string input)
         {
             return input == null ? null : Regex.Replace(input, "([A-Z])", " $1", RegexOptions.Compiled).Trim();
         }
@@ -3936,8 +3933,7 @@ namespace Nostreets.Extensions.Extend.Basic
             }
         }
 
-
-        public static T Clone<T>(this object obj, bool ignoreReferenceLoopHandling = true)
+        public static T Clone<T>(this T obj, bool ignoreReferenceLoopHandling = true)
         {
             var settings = new JsonSerializerSettings
             {

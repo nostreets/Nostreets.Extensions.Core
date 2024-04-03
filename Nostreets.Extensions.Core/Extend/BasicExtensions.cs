@@ -346,10 +346,41 @@ namespace Nostreets.Extensions.Extend.Basic
             return solutionDirPath.ScanForFilePath(null, "sln");
         }
 
+        public static string GetMethodNameThruStack(string txtInStack, bool simplfyMethodName = true)
+        {
+            string result = null;
+            string stackTrace = Environment.StackTrace;
+            string[] stackFrames = stackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var callingFrame in stackFrames) 
+            {
+                if (!callingFrame.Contains(txtInStack))
+                    continue;
+
+                int methodNameStartIndex = callingFrame.IndexOf("at ") + 3;
+                int methodNameEndIndex = callingFrame.LastIndexOf(" in ");
+                string executingMethodName = callingFrame.Substring(methodNameStartIndex, methodNameEndIndex - methodNameStartIndex);
+
+                result = executingMethodName;
+                break;
+            }
+
+            if (!string.IsNullOrEmpty(result) && simplfyMethodName) 
+            {
+                string pattern = @"(?<=\.)[\w\d_]+\(.*\)$";
+                Match match = Regex.Match(result, pattern);
+
+                if (match.Success)
+                {
+                    result = match.Value;
+                }
+            }
+
+            return result;
+        }
         #endregion Static
 
         #region Extensions
-
         /// <summary>
         /// Adds the attribute.
         /// </summary>
@@ -2128,6 +2159,7 @@ namespace Nostreets.Extensions.Extend.Basic
 
             var paramTypes = parameters.Select(a => a.GetType()).ToArray();
             MethodInfo method = GetMethod(type, methodName, paramTypes);
+
             if (method != null)
             {
                 if (method.ReturnType == typeof(Task))
@@ -3944,7 +3976,21 @@ namespace Nostreets.Extensions.Extend.Basic
             return JsonConvert.DeserializeObject<T>(seliarzedObj, settings);
         }
 
+        public static string GetFileExtension(this string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                throw new ArgumentException("File name cannot be null or empty.");
+            }
 
+            int dotIndex = fileName.LastIndexOf('.');
+            if (dotIndex >= 0 && dotIndex < fileName.Length - 1)
+            {
+                return fileName.Substring(dotIndex + 1);
+            }
+
+            return string.Empty;
+        }
         #endregion Extensions
     }
 }

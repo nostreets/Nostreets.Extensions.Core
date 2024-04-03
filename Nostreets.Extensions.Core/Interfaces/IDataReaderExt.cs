@@ -246,7 +246,5 @@ namespace Nostreets.Extensions.Interfaces
 
             return parsedValue;
         }
-
-
     }
 }

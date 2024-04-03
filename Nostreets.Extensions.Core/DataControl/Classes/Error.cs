@@ -45,10 +45,8 @@ namespace Nostreets.Extensions.DataControl.Classes
         public string Method { get; set; }
         public int Line { get; set; }
         public string SerializedTrace { get => Trace != null ? JsonConvert.SerializeObject(Trace) : null; }
+        public string? HelpLink { get; set; }
 
-        
-        
-        public string HelpLink { get; set; }
         [NotMapped]
         public override bool IsArchived { get; set; }
         [NotMapped]

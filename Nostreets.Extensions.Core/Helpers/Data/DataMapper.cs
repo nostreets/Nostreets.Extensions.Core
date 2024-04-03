@@ -10,7 +10,6 @@ namespace Nostreets.Extensions.Helpers.Data
 {
     public class DataMapper
     {
-
         public static object MapToObject(IDataReader reader, Type type)
         {
             PropertyInfo[] props = type.GetProperties();
@@ -72,6 +71,5 @@ namespace Nostreets.Extensions.Helpers.Data
             T obj = (T)MapToObject(reader, type);
             return obj;
         }
-
     }
 }

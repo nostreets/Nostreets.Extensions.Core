@@ -17,6 +17,10 @@ namespace Nostreets.Extensions.DataControl.Enums
         Question
     }
 
-    
-
+    public enum FileFormat
+    {
+        Csv,
+        Excel,
+        Xml
+    }
 }

@@ -359,6 +359,10 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 int methodNameStartIndex = callingFrame.IndexOf("at ") + 3;
                 int methodNameEndIndex = callingFrame.LastIndexOf(" in ");
+
+                if (methodNameEndIndex == -1)
+                    continue;
+
                 string executingMethodName = callingFrame.Substring(methodNameStartIndex, methodNameEndIndex - methodNameStartIndex);
 
                 result = executingMethodName;
@@ -3991,6 +3995,14 @@ namespace Nostreets.Extensions.Extend.Basic
 
             return string.Empty;
         }
+
+        public static string FirstCharToUpper(this string input) =>
+        input switch
+        {
+            null => throw new ArgumentNullException(nameof(input)),
+            "" => throw new ArgumentException($"{nameof(input)} cannot be empty", nameof(input)),
+            _ => string.Concat(input[0].ToString().ToUpper(), input.AsSpan(1))
+        };
         #endregion Extensions
     }
 }

@@ -2773,8 +2773,6 @@ namespace Nostreets.Extensions.Extend.Basic
             return ran.Next(min, max);
         }
 
-        
-
         /// <summary>
         /// Randoms the string.
         /// </summary>
@@ -2782,11 +2780,24 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <param name="length">The length.</param>
         /// <param name="includeNumbers">if set to <c>true</c> [include numbers].</param>
         /// <returns></returns>
-        public static string RandomString(this Random ran, int length, bool includeNumbers = true)
+        public static string RandomString(this Random ran, int length, bool includeUpperCase = true, bool includeLowerCase = true, bool includeNumbers = true)
         {
-            string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0" + (includeNumbers ? "123456789" : "");
-            return new string(Enumerable.Repeat(chars, length)
-              .Select(s => s[ran.Next(s.Length)]).ToArray());
+            if (!includeUpperCase && !includeLowerCase && !includeNumbers)
+                throw new Exception($"{nameof(includeUpperCase)} or {nameof(includeLowerCase)} or {nameof(includeNumbers)} must be true");
+
+            string capitalChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            string lowerChars = "abcdefghijklmnopqrstuvwxyz";
+            string numbers = "1234567890";
+
+            var chars = "";
+            if (includeUpperCase)
+                chars += capitalChars;
+            if (includeLowerCase)
+                chars += lowerChars;
+            if (includeNumbers)
+                chars += numbers;
+
+            return new string(Enumerable.Repeat(chars, length).Select(s => s[ran.Next(s.Length)]).ToArray());
         }
 
         /// <summary>
@@ -3720,6 +3731,9 @@ namespace Nostreets.Extensions.Extend.Basic
 
         public static bool IsEmail(this string email)
         {
+            if (string.IsNullOrEmpty(email))
+                return false;
+
             var trimmedEmail = email.Trim();
 
             if (!trimmedEmail.Contains("@") || !trimmedEmail.Contains("."))
@@ -3741,7 +3755,11 @@ namespace Nostreets.Extensions.Extend.Basic
 
         public static bool IsPhoneNumber(this string number)
         {
-            return Regex.Match(number, @"^(\+[0-9]{9})$").Success;
+            if (string.IsNullOrEmpty(number))
+                return false;
+
+            Match match = Regex.Match(number, @"^[0-9]{10}$");
+            return match.Success;
         }
 
         public static T CastViaReflection<T>(this object obj)
@@ -4003,6 +4021,25 @@ namespace Nostreets.Extensions.Extend.Basic
             "" => throw new ArgumentException($"{nameof(input)} cannot be empty", nameof(input)),
             _ => string.Concat(input[0].ToString().ToUpper(), input.AsSpan(1))
         };
+
+        public static string Masked(this string source, char maskValue, int start, int count, params char[] excludedChars)
+        {
+            var firstPart = source.Substring(0, start);
+            var lastPart = source.Substring(start + count, source.Length - start - count);
+            var middlePart = new string(maskValue, count);
+
+            // Exclude specified characters from being masked
+            for (int i = 0; i < count; i++)
+            {
+                char currentChar = source[start + i];
+                if (excludedChars.Contains(currentChar))
+                {
+                    middlePart = middlePart.Remove(i, 1).Insert(i, currentChar.ToString());
+                }
+            }
+
+            return firstPart + middlePart + lastPart;
+        }
         #endregion Extensions
     }
 }

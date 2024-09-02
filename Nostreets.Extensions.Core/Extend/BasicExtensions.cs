@@ -1906,7 +1906,7 @@ namespace Nostreets.Extensions.Extend.Basic
         }
 
         /// <summary>
-        /// Indexes the specified predicate.
+        /// Finds the index bassed in the specified predicate.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="coll">The coll.</param>
@@ -2039,8 +2039,6 @@ namespace Nostreets.Extensions.Extend.Basic
 
             return result;
         }
-
-
 
         /// <summary>
         /// Intoes the generic method.
@@ -4039,6 +4037,28 @@ namespace Nostreets.Extensions.Extend.Basic
             }
 
             return firstPart + middlePart + lastPart;
+        }
+
+        public static T SetPropertyValue<T, TValue>(this T obj, TValue value, Expression<Func<T, TValue>> selector)
+        {
+            var memberExpression = selector.Body as MemberExpression;
+            var property = memberExpression.Member as PropertyInfo;
+
+            if (property != default)
+                property.SetValue(obj, value);
+
+            return obj;
+        }
+
+        public static object SetPropertyValue<TValue>(this object obj, TValue value, Expression<Func<object, TValue>> selector)
+        {
+            var memberExpression = selector.Body as MemberExpression;
+            var property = memberExpression.Member as PropertyInfo;
+
+            if (property != default)
+                property.SetValue(obj, value);
+
+            return obj;
         }
         #endregion Extensions
     }

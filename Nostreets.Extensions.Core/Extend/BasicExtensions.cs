@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Globalization;
@@ -1096,6 +1097,28 @@ namespace Nostreets.Extensions.Extend.Basic
                 throw new ArgumentNullException("Type must be an enum");
 
             return (int)Enum.Parse(typeof(T), name);
+        }
+
+        /// <summary>
+        /// Gets the enum description.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException">Type must be an enum</exception>
+        public static string GetEnumDescription<T>(this T value) where T : struct, IConvertible
+        {
+            if (!typeof(T).IsEnum)
+            {
+                throw new ArgumentException("T must be an enumerated type");
+            }
+
+            DescriptionAttribute attribute = value.GetType()
+                    .GetField(value.ToString())
+                    ?.GetCustomAttributes(typeof(DescriptionAttribute), false)
+                    .SingleOrDefault() as DescriptionAttribute;
+
+            return attribute == null ? value.ToString() : attribute.Description;
         }
 
         /// <summary>
@@ -2282,6 +2305,19 @@ namespace Nostreets.Extensions.Extend.Basic
         }
 
         /// <summary>
+        /// Determines whether this instance is nullable.
+        /// </summary>
+        /// <param name="type">The type.</param>
+        /// <returns>
+        ///   <c>true</c> if the specified type is nullable; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool IsNullable(this Type type, out Type underlyingType)
+        {
+            underlyingType = Nullable.GetUnderlyingType(type);
+            return underlyingType != null;
+        }
+
+        /// <summary>
         /// Determines whether this instance is numeric.
         /// </summary>
         /// <param name="obj">The object.</param>
@@ -3310,10 +3346,9 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <typeparam name="T"></typeparam>
         /// <param name="task">The task.</param>
         /// <returns></returns>
-        public static T SyncTask<T>(this Task<T> task)
+        public static T Await<T>(this Func<Task<T>> task)
         {
-            task.RunSynchronously();
-            return task.Result;
+            return Task.Run(task).GetAwaiter().GetResult();
         }
 
         /// <summary>

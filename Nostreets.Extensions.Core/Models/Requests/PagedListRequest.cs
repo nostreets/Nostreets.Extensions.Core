@@ -13,7 +13,7 @@ namespace Nostreets.Extensions.Core.Models.Requests
         public IEnumerable<Func<T, bool>> Filters { get; set; }
 
         public string OrderByKey { get; set; }
-        public bool OrderByDesc { get; set; }
+        public bool OrderByDesc { get; set; } = true;
         public IComparer<object> OrderByComparer { get; set; }
     }
 }

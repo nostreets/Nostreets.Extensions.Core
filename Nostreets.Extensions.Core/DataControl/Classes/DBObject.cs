@@ -1,11 +1,12 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Nostreets.Extensions.DataControl.Classes
 {
     public abstract partial class DBObject<T>
     {
         [Key]
+        [Column(Order = 1)]
         public virtual T Id { get; set; }
 
         public virtual DateTime DateCreated { get; set; } = DateTime.Now;

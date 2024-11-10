@@ -383,6 +383,54 @@ namespace Nostreets.Extensions.Extend.Basic
 
             return result;
         }
+
+        public static string GetContrastingColor(string hexColor)
+        {
+            // Remove the '#' if it's present
+            if (hexColor.StartsWith("#"))
+            {
+                hexColor = hexColor.Substring(1);
+            }
+
+            // Parse the hex string to get the RGB values
+            int r = Convert.ToInt32(hexColor.Substring(0, 2), 16);
+            int g = Convert.ToInt32(hexColor.Substring(2, 2), 16);
+            int b = Convert.ToInt32(hexColor.Substring(4, 2), 16);
+
+            // Calculate the perceived brightness
+            double brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+
+            // Return white for dark colors, black for light colors
+            return
+                brightness < 128
+                ? "#ffffff" //white
+                : "#000000"; // black
+        }
+
+        public static string AdjustColorBrightness(string hexColor, decimal adjustment)
+        {
+            // Remove the '#' if present
+            if (hexColor.StartsWith("#"))
+            {
+                hexColor = hexColor.Substring(1);
+            }
+
+            // Parse the hex string to get the RGB values
+            int r = Convert.ToInt32(hexColor.Substring(0, 2), 16);
+            int g = Convert.ToInt32(hexColor.Substring(2, 2), 16);
+            int b = Convert.ToInt32(hexColor.Substring(4, 2), 16);
+
+            // Calculate the adjustment factor
+            decimal factor = adjustment > 0 ? 1 + adjustment * 0.1m : 1 + adjustment * 0.1m;
+
+            // Adjust RGB values
+            r = (int)Math.Clamp(r * factor, 0, 255);
+            g = (int)Math.Clamp(g * factor, 0, 255);
+            b = (int)Math.Clamp(b * factor, 0, 255);
+
+            // Convert back to hex
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
         #endregion Static
 
         #region Extensions
@@ -2879,6 +2927,17 @@ namespace Nostreets.Extensions.Extend.Basic
             }
 
             return txt;
+        }
+
+        public static string RemoveSpecialCharacters(this string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input; // Return the original string if it's null or empty
+            }
+
+            // Use a regular expression to remove special characters
+            return Regex.Replace(input, @"[^a-zA-Z0-9]", "");
         }
 
         /// <summary>

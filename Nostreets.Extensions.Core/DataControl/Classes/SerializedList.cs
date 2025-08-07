@@ -1,21 +1,24 @@
 ﻿using Newtonsoft.Json;
-
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web.Http.Results;
-
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Nostreets.Extensions.Core.DataControl.Classes
 {
-    public class SerializedList<T> : SerializedList<T, string> { }
+    public class SerializedList<T> : SerializedList<T, string> 
+    {
+        public SerializedList() { }
+
+        public SerializedList(IEnumerable<T> values) : base(values) { }
+    }
 
     public class SerializedList<T, T2> : IList<T>
     {
+        public SerializedList() { }
+
+        public SerializedList(IEnumerable<T> values) 
+        {
+            List = values.ToList();
+        }
+
         public Func<T2, T> TConverter { get; set; }
         public Func<T, T2> T2Converter { get; set; }
 

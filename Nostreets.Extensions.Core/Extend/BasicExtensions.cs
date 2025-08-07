@@ -384,22 +384,51 @@ namespace Nostreets.Extensions.Extend.Basic
             return result;
         }
 
-        public static string GetContrastingColor(string hexColor)
+        public static string GetContrastingColor(string color)
         {
-            // Remove the '#' if it's present
-            if (hexColor.StartsWith("#"))
+            if (!color.Contains("#") && !color.Contains("rbg"))
+                return null;
+
+            int r, g, b;
+
+            // Check if the color is in the RGBA format
+            if (color.StartsWith("rgba(", StringComparison.OrdinalIgnoreCase))
             {
-                hexColor = hexColor.Substring(1);
+                // Extract RGB values from rgba(r, g, b, a)
+                var rgbaValues = color.Substring(5, color.Length - 6).Split(',');
+                r = int.Parse(rgbaValues[0]);
+                g = int.Parse(rgbaValues[1]);
+                b = int.Parse(rgbaValues[2]);
+            }
+            // Check if the color is in the RGB format
+            else if (color.StartsWith("rgb(", StringComparison.OrdinalIgnoreCase))
+            {
+                // Extract RGB values from rgb(r, g, b)
+                var rgbValues = color.Substring(4, color.Length - 5).Split(',');
+                r = int.Parse(rgbValues[0]);
+                g = int.Parse(rgbValues[1]);
+                b = int.Parse(rgbValues[2]);
+            }
+            // Check if the color is in hex format
+            else
+            {
+                if (color.StartsWith("#"))
+                {
+                    color = color.Substring(1);
+                }
+
+                // Parse the hex string to get the RGB values
+                r = Convert.ToInt32(color.Substring(0, 2), 16);
+                g = Convert.ToInt32(color.Substring(2, 2), 16);
+                b = Convert.ToInt32(color.Substring(4, 2), 16);
             }
 
-            // Parse the hex string to get the RGB values
-            int r = Convert.ToInt32(hexColor.Substring(0, 2), 16);
-            int g = Convert.ToInt32(hexColor.Substring(2, 2), 16);
-            int b = Convert.ToInt32(hexColor.Substring(4, 2), 16);
+            // Calculate brightness as the average of RGB values
+            //double brightness = (r + g + b) / 3.0;
 
-            // Calculate the perceived brightness
+            // Calculate the perceived brightness using the weighted formula
             double brightness = (0.299 * r + 0.587 * g + 0.114 * b);
-
+            
             // Return white for dark colors, black for light colors
             return
                 brightness < 128
@@ -1154,7 +1183,7 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <param name="name">The name.</param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException">Type must be an enum</exception>
-        public static string GetEnumDescription<T>(this T value) where T : struct, IConvertible
+        public static string GetEnumDescription<T>(this T value) where T : Enum
         {
             if (!typeof(T).IsEnum)
             {
@@ -2604,13 +2633,19 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <typeparam name="T"></typeparam>
         /// <param name="obj">The object.</param>
         /// <param name="target">The target.</param>
-        public static void MapProperties<T>(this object obj, ref T target, Dictionary<string, string> mapper = null) where T : new()
+        public static void MapProperties<T>(this object obj, ref T target, IEnumerable<string> excludedProps = null, Dictionary<string, string> mapper = null) where T : new()
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
 
             if (target == null)
                 target = new T();
+
+            if (excludedProps == null)
+                excludedProps = new List<string>();
+
+            if (mapper == null)
+                mapper = new Dictionary<string, string>();
 
             if (obj.GetType() != typeof(Dictionary<string, object>))
             {
@@ -2619,10 +2654,13 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 foreach (PropertyInfo prop in curProps)
                 {
+                    if (excludedProps.Contains(prop.Name))
+                        continue;
+
                     PropertyInfo getProp(string propName) => targetProps.FirstOrDefault(a => a.Name == propName && a.PropertyType == prop.PropertyType);
                     var targetProp = getProp(prop.Name);
 
-                    if (targetProp == null && mapper != null && mapper.ContainsKey(prop.Name))
+                    if (targetProp == null && mapper.ContainsKey(prop.Name))
                         targetProp = getProp(mapper[prop.Name]);
 
                     if (targetProp != null)
@@ -2636,6 +2674,9 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 foreach (var item in (Dictionary<string, object>)obj)
                 {
+                    if (excludedProps.Contains(item.Key))
+                        continue;
+
                     someObjectType
                              .GetProperty(item.Key)
                              .SetValue(someObject, item.Value, null);
@@ -2651,12 +2692,18 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <typeparam name="T"></typeparam>
         /// <param name="obj">The object.</param>
         /// <param name="target">The target.</param>
-        public static T MapProperties<T>(this object obj, Dictionary<string, string> mapper = null) where T : new()
+        public static T MapProperties<T>(this object obj, IEnumerable<string> excludedProps = null, Dictionary<string, string> mapper = null) where T : new()
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
 
             var target = new T();
+
+            if (excludedProps == null)
+                excludedProps = new List<string>();
+
+            if (mapper == null)
+                mapper = new Dictionary<string, string>();
 
             if (obj.GetType() != typeof(Dictionary<string, object>))
             {
@@ -2665,10 +2712,13 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 foreach (PropertyInfo prop in curProps)
                 {
+                    if (excludedProps.Contains(prop.Name))
+                        continue;
+
                     PropertyInfo getProp(string propName) => targetProps.FirstOrDefault(a => a.Name == propName && a.PropertyType == prop.PropertyType);
                     var targetProp = getProp(prop.Name);
 
-                    if (targetProp == null && mapper != null && mapper.ContainsKey(prop.Name))
+                    if (targetProp == null && mapper.ContainsKey(prop.Name))
                         targetProp = getProp(mapper[prop.Name]);
 
                     if (targetProp != null)
@@ -2682,6 +2732,9 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 foreach (var item in (Dictionary<string, object>)obj)
                 {
+                    if (excludedProps.Contains(item.Key))
+                        continue;
+
                     someObjectType
                              .GetProperty(item.Key)
                              .SetValue(someObject, item.Value, null);
@@ -3320,7 +3373,7 @@ namespace Nostreets.Extensions.Extend.Basic
         }
 
         /// <summary>
-        /// Starts the of week.
+        /// Get the start the of week.
         /// </summary>
         /// <param name="dt">The dt.</param>
         /// <returns></returns>
@@ -3990,6 +4043,9 @@ namespace Nostreets.Extensions.Extend.Basic
 
         public static bool ContainsHTML(this string checkString)
         {
+            if (checkString == null)
+                return false;
+
             return Regex.IsMatch(checkString, "<(.|\n)*?>");
         }
 

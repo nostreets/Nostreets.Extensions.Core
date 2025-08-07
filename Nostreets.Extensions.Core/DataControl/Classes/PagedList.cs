@@ -37,49 +37,5 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
         {
             get { return PageIndex + 1 < TotalPages; }
         }
-
-        //public void ReorderItems(string key, bool desc = false, IComparer<object> comparer = null)
-        //{
-        //    if (!string.IsNullOrEmpty(key) && typeof(T).HasProperty(key))
-        //    {
-        //        List<T> orderedList = new List<T>();
-        //        if (comparer != null)
-        //        {
-        //            if (desc)
-        //                orderedList = TotalItems.OrderByDescending(a => a.GetPropertyValue(key), comparer).ToList();
-        //            else
-        //                orderedList = TotalItems.OrderBy(a => a.GetPropertyValue(key), comparer).ToList();
-        //        }
-        //        else
-        //        {
-        //            if (desc)
-        //                orderedList = TotalItems.OrderByDescending(a => a.GetPropertyValue(key)).ToList();
-        //            else
-        //                orderedList = TotalItems.OrderBy(a => a.GetPropertyValue(key)).ToList();
-        //        }
-
-        //        TotalItems = orderedList;
-        //    }
-        //}
-
-        //public List<T> GetPagedItems(int? pageIndex = null, int? pageSize = null)
-        //{
-        //    var result = new List<T>();
-
-        //    if (pageIndex != null)
-        //        PageIndex = pageIndex.Value;
-
-        //    if (pageSize != null)
-        //        PageSize = pageSize.Value;
-
-        //    int startIndex = PageIndex * PageSize;
-        //    int endIndex = startIndex + PageSize;
-        //    endIndex = Math.Min(endIndex, TotalItems.Count);
-
-        //    if (startIndex < endIndex)
-        //        result = TotalItems.GetRange(startIndex, endIndex - startIndex);
-
-        //    return result;
-        //}
     }
 }

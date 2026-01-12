@@ -18,6 +18,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.WebPages;
@@ -3874,6 +3875,7 @@ namespace Nostreets.Extensions.Extend.Basic
             return serializedObj1 == serializedObj2;
         }
 
+        //TODO: Duplicate Code "IsEmail" is in String Extensions
         public static bool IsEmail(this string email)
         {
             if (string.IsNullOrEmpty(email))
@@ -4162,13 +4164,14 @@ namespace Nostreets.Extensions.Extend.Basic
             return string.Empty;
         }
 
-        public static string FirstCharToUpper(this string input) =>
-        input switch
-        {
-            null => throw new ArgumentNullException(nameof(input)),
-            "" => throw new ArgumentException($"{nameof(input)} cannot be empty", nameof(input)),
-            _ => string.Concat(input[0].ToString().ToUpper(), input.AsSpan(1))
-        };
+        //TODO: Dupulicate Code "Capilataize" will do the same thing
+        //public static string FirstCharToUpper(this string input) =>
+        //input switch
+        //{
+        //    null => throw new ArgumentNullException(nameof(input)),
+        //    "" => throw new ArgumentException($"{nameof(input)} cannot be empty", nameof(input)),
+        //    _ => string.Concat(input[0].ToString().ToUpper(), input.AsSpan(1))
+        //};
 
         public static string Masked(this string source, char maskValue, int start, int count, params char[] excludedChars)
         {
@@ -4209,6 +4212,15 @@ namespace Nostreets.Extensions.Extend.Basic
                 property.SetValue(obj, value);
 
             return obj;
+        }
+
+        public static string CapitalizeEachWord(this string sentence)
+        {
+            if (string.IsNullOrWhiteSpace(sentence))
+                return sentence;
+
+            TextInfo textInfo = CultureInfo.CurrentCulture.TextInfo;
+            return textInfo.ToTitleCase(sentence.ToLower());
         }
         #endregion Extensions
     }

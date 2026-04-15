@@ -348,9 +348,10 @@ namespace Nostreets.Extensions.Extend.Basic
             return solutionDirPath.ScanForFilePath(null, "sln");
         }
 
-        public static string GetMethodNameThruStack(string txtInStack, bool simplfyMethodName = true)
+        public static string GetMethodNameThruStack(string txtInStack, bool simplfyMethodName = true, string[] skipPrefixes = null)
         {
             string result = null;
+            string[] constSkipPrefixes = { "System.", "Microsoft.", "GetMethodNameThruStack" };
             string stackTrace = Environment.StackTrace;
             string[] stackFrames = stackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -369,6 +370,35 @@ namespace Nostreets.Extensions.Extend.Basic
 
                 result = executingMethodName;
                 break;
+            }
+
+            // Fallback: find the first frame that isn't from System, GetMethodNameThruStack itself,
+            // or common infrastructure methods, so callers always get a meaningful method name.
+            if (string.IsNullOrEmpty(result))
+            {
+                string[] completeSkipPrefixes = 
+                    (skipPrefixes != null && skipPrefixes.Length > 0)
+                    ? constSkipPrefixes.Concat(skipPrefixes).ToArray()
+                    : constSkipPrefixes;
+
+                foreach (var callingFrame in stackFrames)
+                {
+                    int atIndex = callingFrame.IndexOf("at ");
+                    if (atIndex == -1)
+                        continue;
+
+                    int methodNameStartIndex = atIndex + 3;
+                    int methodNameEndIndex = callingFrame.LastIndexOf(" in ");
+                    string frameName = methodNameEndIndex != -1
+                        ? callingFrame.Substring(methodNameStartIndex, methodNameEndIndex - methodNameStartIndex)
+                        : callingFrame.Substring(methodNameStartIndex);
+
+                    if (completeSkipPrefixes.Any(p => frameName.Contains(p)))
+                        continue;
+
+                    result = frameName;
+                    break;
+                }
             }
 
             if (!string.IsNullOrEmpty(result) && simplfyMethodName) 
@@ -1569,18 +1599,32 @@ namespace Nostreets.Extensions.Extend.Basic
         }
 
         /// <summary>
-        /// Gets the property value.
+        /// Gets the property value by name.
         /// </summary>
-        /// <param name="obj">The object.</param>
-        /// <param name="propertyName">Name of the property.</param>
-        /// <returns></returns>
-        /// <exception cref="Exception">obj cannot be a Type its self to be able to GetPropertyValue...</exception>
         public static object GetPropertyValue(this object obj, string propertyName)
         {
             if (obj.GetType() == typeof(Type).GetType())
                 throw new Exception("obj cannot be a Type its self to be able to GetPropertyValue...");
 
-            return obj.GetType().GetProperties().Single(pi => pi.Name == propertyName).GetValue(obj);
+            var matches = obj.GetType().GetProperties().Where(pi => pi.Name == propertyName).ToList();
+            if (matches.Count > 1)
+                throw new AmbiguousMatchException($"'{obj.GetType().Name}' has {matches.Count} properties named '{propertyName}' (shadowed via 'new'). Use the PropertyInfo overload instead.");
+
+            return matches.Single().GetValue(obj);
+        }
+
+        /// <summary>
+        /// Gets the property value via a known <see cref="PropertyInfo"/> — preferred over the
+        /// name-based overload when the caller already holds the correct <see cref="PropertyInfo"/>
+        /// (e.g. from <c>GetComplexTypes</c>), as it avoids ambiguity when properties are shadowed
+        /// with <c>new</c>.
+        /// </summary>
+        public static object GetPropertyValue(this object obj, PropertyInfo prop)
+        {
+            if (obj.GetType() == typeof(Type).GetType())
+                throw new Exception("obj cannot be a Type its self to be able to GetPropertyValue...");
+
+            return prop.GetValue(obj);
         }
 
         /// <summary>
@@ -3335,8 +3379,25 @@ namespace Nostreets.Extensions.Extend.Basic
         /// <param name="value">The value.</param>
         public static void SetPropertyValue(this object obj, string propertyName, object value)
         {
-            if (obj.GetType().GetProperties().Single(pi => pi.Name == propertyName).GetSetMethod() != null)
-                obj.GetType().GetProperties().Single(pi => pi.Name == propertyName).SetValue(obj, value);
+            var matches = obj.GetType().GetProperties().Where(pi => pi.Name == propertyName).ToList();
+            if (matches.Count > 1)
+                throw new AmbiguousMatchException($"'{obj.GetType().Name}' has {matches.Count} properties named '{propertyName}' (shadowed via 'new'). Use the PropertyInfo overload instead.");
+
+            var prop = matches.Single();
+            if (prop.GetSetMethod() != null)
+                prop.SetValue(obj, value);
+        }
+
+        /// <summary>
+        /// Sets the property value via a known <see cref="PropertyInfo"/> — preferred over the
+        /// name-based overload when the caller already holds the correct <see cref="PropertyInfo"/>
+        /// (e.g. from <c>GetComplexTypes</c>), as it avoids ambiguity when properties are shadowed
+        /// with <c>new</c>.
+        /// </summary>
+        public static void SetPropertyValue(this object obj, PropertyInfo prop, object value)
+        {
+            if (prop.GetSetMethod() != null)
+                prop.SetValue(obj, value);
         }
 
         /// <summary>
@@ -4222,6 +4283,14 @@ namespace Nostreets.Extensions.Extend.Basic
             TextInfo textInfo = CultureInfo.CurrentCulture.TextInfo;
             return textInfo.ToTitleCase(sentence.ToLower());
         }
+
+        public static string? SafeGetString(this JsonElement el) => el.ValueKind == JsonValueKind.Null ? null : el.GetString();
+
+        public static DateTime? SafeGetDateTime(this JsonElement el) => el.ValueKind == JsonValueKind.Null ? null : el.GetDateTime();
+
+        public static decimal? SafeGetDecimal(this JsonElement el) => el.ValueKind == JsonValueKind.Null ? null : el.GetDecimal();
+
+        public static int? SafeGetInt32(this JsonElement el) => el.ValueKind == JsonValueKind.Null ? null : el.GetInt32();
         #endregion Extensions
     }
 }

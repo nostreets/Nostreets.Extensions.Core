@@ -1,9 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Nostreets.Extensions.Core.Interfaces;
+using Nostreets.Extensions.Extend.Basic;
+
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Nostreets.Extensions.DataControl.Classes
 {
-    public abstract partial class DBObject<T>
+    public abstract partial class DBObject<T> : IDBObject<T>
     {
         [Key]
         [Column(Order = 1)]
@@ -24,7 +27,7 @@ namespace Nostreets.Extensions.DataControl.Classes
         public virtual bool IsArchived { get; set; } = false;
     }
 
-    public abstract class DBObject : DBObject<string>
+    public abstract class DBObject : DBObject<string>, IDBObject
     {
         public override string Id { get; set; } = Guid.NewGuid().ToString();
     }

@@ -4202,7 +4202,16 @@ namespace Nostreets.Extensions.Extend.Basic
         {
             var settings = new JsonSerializerSettings
             {
-                ReferenceLoopHandling = ignoreReferenceLoopHandling ? ReferenceLoopHandling.Ignore : ReferenceLoopHandling.Serialize
+                ReferenceLoopHandling = ignoreReferenceLoopHandling ? ReferenceLoopHandling.Ignore : ReferenceLoopHandling.Serialize,
+                // Force every collection property to be REPLACED (a fresh instance built from the JSON
+                // array) rather than REUSED (where Newtonsoft calls Add() on whatever the constructor
+                // already initialised). Without this, types that expose both an IList<T> property AND
+                // a sibling string-bridge property over the same backing list -- e.g. Personnel exposing
+                // both `Highlights` (SerializedList<string>) and `SerializedHighlights` (string mirror
+                // of Highlights.Text) -- end up populated twice during the round-trip: once when the
+                // bridge string is set on a non-empty list, and once when the JSON array re-appends each
+                // item via Add(). Replace makes the JSON array the single source of truth for the list.
+                ObjectCreationHandling = ObjectCreationHandling.Replace
             };
 
             var seliarzedObj = JsonConvert.SerializeObject(obj, settings);

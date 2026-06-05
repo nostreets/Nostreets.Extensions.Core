@@ -38,6 +38,7 @@ namespace Nostreets.Extensions.DataControl.Classes
         }
 
         public string? SessionKey { get; set; }
+        public string? TransactionId { get; set; }
         public string? Data { get; set; }
         public string ErrorMessage { get; set; }
         public string Source { get; set; }

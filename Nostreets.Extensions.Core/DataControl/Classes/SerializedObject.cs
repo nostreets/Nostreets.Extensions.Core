@@ -40,7 +40,10 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
             set
             {
                 _text = value;
-                _data = GetDeserializedObject();
+                // Null-safe: a null/empty serialized string (e.g. a null DB column or an absent wire field)
+                // must not be fed to JsonConvert.DeserializeObject (it throws ArgumentNullException). Mirrors
+                // the Data getter's own IsNullOrEmpty guard.
+                _data = string.IsNullOrEmpty(value) ? default : GetDeserializedObject();
             }
         }
         private string _text;

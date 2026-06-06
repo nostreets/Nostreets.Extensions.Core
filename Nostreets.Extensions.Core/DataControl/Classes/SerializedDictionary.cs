@@ -33,7 +33,8 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
             set
             {
                 _text = value;
-                _dictionary = GetDeserializedDictionary();
+                // Null-safe (mirrors the Dictionary getter's IsNullOrEmpty guard): never feed null to DeserializeObject.
+                _dictionary = string.IsNullOrEmpty(value) ? new Dictionary<TKey, TValue>() : GetDeserializedDictionary();
             }
         }
         private string _text;

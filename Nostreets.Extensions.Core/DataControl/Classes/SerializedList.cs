@@ -43,7 +43,8 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
             set
             {
                 _text = value;
-                _list = GetDeserializedList();
+                // Null-safe (mirrors the List getter's IsNullOrEmpty guard): never feed null to DeserializeObject.
+                _list = string.IsNullOrEmpty(value) ? new List<T>() : GetDeserializedList();
             }
         }
         private string _text;

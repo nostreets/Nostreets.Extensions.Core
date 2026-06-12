@@ -26,6 +26,7 @@
     <PackageReference Include="Owin" Version="1.0.0" />
     <PackageReference Include="RazorGenerator.Mvc" Version="2.4.9" />
     <PackageReference Include="RestSharp" Version="108.0.3" />
+    <PackageReference Include="Serialize.Linq" Version="4.0.167" />
     <PackageReference Include="StackExchange.Redis" Version="2.6.86" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
     <PackageReference Include="System.Data.OleDb" Version="7.0.0" />

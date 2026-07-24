@@ -11,10 +11,22 @@ namespace Nostreets.Extensions.Core.Models.Responses
     /// into <see cref="HasError(ServiceResponse)"/> / <see cref="IsUsable(ServiceResponse)"/> /
     /// <see cref="GetDataOr{T}"/> / <see cref="TryGetData{T}"/>.
     ///
-    /// Lives in <c>ServiceResponse</c>'s own namespace so it is available wherever a response is consumed with
-    /// no extra <c>using</c>. The <c>&lt;T&gt;</c> overloads are more specific than the base ones, so a
-    /// <see cref="ServiceResponse{T}"/> automatically resolves to the <c>Data</c>-aware version. Receivers are
-    /// nullable — these are deliberately null-safe (an extension can be invoked on a null reference).
+    /// Lives in <c>ServiceResponse</c>'s own namespace so a file that already imports the response type gets
+    /// these for free. ⚠ That is NOT the same as "no <c>using</c> needed": C# resolves extension methods by
+    /// IMPORTED NAMESPACE, not by the receiver's type. A consumer that only ever holds a response in a
+    /// <c>var</c> returned from another namespace's method never has to name <see cref="ServiceResponse{T}"/>,
+    /// so it often has NO <c>using Nostreets.Extensions.Core.Models.Responses;</c> — and then these methods
+    /// simply do not resolve (CS1061 "does not contain a definition for 'IsUsable'"). If that happens, add the
+    /// using; do not hand-roll <c>!IsSuccessful || Data == null</c> in its place.
+    /// (Observed 2026-07-23 in <c>OS.Blazor.Base.Applications\Domian\AppAuthorizeRouteView.cs</c>, which
+    /// consumed responses via <c>var</c> and had no such import.)
+    ///
+    /// The <c>&lt;T&gt;</c> overloads are more specific than the base ones, so a
+    /// <see cref="ServiceResponse{T}"/> automatically resolves to the <c>Data</c>-aware version — meaning
+    /// <see cref="IsUsable{T}(ServiceResponse{T})"/> ALSO treats a null <c>Data</c> as unusable, which the
+    /// non-generic overload does not. Receivers are nullable — these are deliberately null-safe (an extension
+    /// can be invoked on a null reference), so <c>response.IsUsable()</c> is safe even when <c>response</c>
+    /// itself is null and needs no <c>?.</c>.
     /// </summary>
     public static class ServiceResponseExtensions
     {

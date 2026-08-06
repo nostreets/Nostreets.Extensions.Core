@@ -60,6 +60,20 @@ namespace Nostreets.Extensions.Interfaces
         Task<int> Count(Func<T, bool> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+
+        /// <summary>
+        /// Runs raw parameterized SQL and materializes the rows as <typeparamref name="T"/> entities.
+        /// The escape hatch for predicates the ORM cannot express — <see cref="Where(Func{T, bool})"/>
+        /// takes a <c>Func</c>, so it filters IN MEMORY after loading every row. Use this when the
+        /// filter must run in the database.
+        /// </summary>
+        /// <remarks>
+        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// <c>SELECT</c> fails at materialization, not at compile time.
+        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
+        /// </remarks>
+        Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }
 
     public interface IDBService<T, IdType>
@@ -92,6 +106,20 @@ namespace Nostreets.Extensions.Interfaces
         Task<int> Count(Func<T, bool> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+
+        /// <summary>
+        /// Runs raw parameterized SQL and materializes the rows as <typeparamref name="T"/> entities.
+        /// The escape hatch for predicates the ORM cannot express — <see cref="Where(Func{T, bool})"/>
+        /// takes a <c>Func</c>, so it filters IN MEMORY after loading every row. Use this when the
+        /// filter must run in the database.
+        /// </summary>
+        /// <remarks>
+        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// <c>SELECT</c> fails at materialization, not at compile time.
+        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
+        /// </remarks>
+        Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }
 
     public interface IDBService<T, IdType, AddType, UpdateType>
@@ -126,6 +154,20 @@ namespace Nostreets.Extensions.Interfaces
         Task<int> Count(Func<T, bool> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
+
+        /// <summary>
+        /// Runs raw parameterized SQL and materializes the rows as <typeparamref name="T"/> entities.
+        /// The escape hatch for predicates the ORM cannot express — <see cref="Where(Func{T, bool})"/>
+        /// takes a <c>Func</c>, so it filters IN MEMORY after loading every row. Use this when the
+        /// filter must run in the database.
+        /// </summary>
+        /// <remarks>
+        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// <c>SELECT</c> fails at materialization, not at compile time.
+        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
+        /// </remarks>
+        Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }
 
     public interface IBasicService

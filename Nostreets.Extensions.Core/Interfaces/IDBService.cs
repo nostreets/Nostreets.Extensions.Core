@@ -51,6 +51,30 @@ namespace Nostreets.Extensions.Interfaces
         Task UpdateRange(IEnumerable<object> collection, Converter<T, T> converter);
 
         Task Delete(object id);
+
+        /// <summary>
+        /// Deletes the row if it is there; returns <c>false</c> instead of throwing when it is not.
+        /// </summary>
+        /// <remarks>
+        /// Exists so <see cref="Delete(object)"/> can keep its STRICT contract. A delete for an id
+        /// that does not exist means the caller's picture of the world is wrong, and for ordinary
+        /// callers that should be loud — silently succeeding turns a typo'd id into a no-op.
+        ///
+        /// Rollback/compensation is the one caller that legitimately needs the opposite. A
+        /// compensating delete may run twice: a rollback that got halfway and was retried, a restart
+        /// finishing a rollback a dead process began, or two compensation paths racing the same
+        /// aggregate. Under the strict contract the second run throws on rows the first already
+        /// removed and can never finish — and the natural "fix" is to wrap it in a swallowing
+        /// try/catch, which is exactly how <c>AppUserService.RollbackNewUserAsync</c> became dead
+        /// code: its empty catch hides the throw, so the rollback fails silently precisely when it
+        /// is needed.
+        ///
+        /// So the semantic is chosen at the CALL SITE rather than globally: ordinary code keeps
+        /// strict deletes, compensation gets idempotency, and no existing caller changes behaviour.
+        /// </remarks>
+        /// <returns><c>true</c> if a row was found and deleted; <c>false</c> if none matched.</returns>
+        Task<bool> DeleteIfExists(object id);
+
         Task DeleteRange(IEnumerable<object> ids);
 
         Task<List<T>> Where(Func<T, bool> predicate);
@@ -97,6 +121,16 @@ namespace Nostreets.Extensions.Interfaces
         Task UpdateRange(IEnumerable<object> collection, Converter<T, T> converter);
 
         Task Delete(IdType id);
+
+        /// <summary>
+        /// Deletes the row if it is there; returns <c>false</c> instead of throwing when it is not.
+        /// Lets <see cref="Delete(IdType)"/> keep its STRICT contract while rollback/compensation —
+        /// the one caller that must survive running twice — gets idempotency. See the
+        /// <c>IDBService&lt;T&gt;</c> overload for the full rationale.
+        /// </summary>
+        /// <returns><c>true</c> if a row was found and deleted; <c>false</c> if none matched.</returns>
+        Task<bool> DeleteIfExists(IdType id);
+
         Task DeleteRange(IEnumerable<IdType> ids);
 
         Task<List<T>> Where(Func<T, bool> predicate);
@@ -145,6 +179,16 @@ namespace Nostreets.Extensions.Interfaces
         Task UpdateRange(IEnumerable<object> collection, Converter<T, T> converter);
 
         Task Delete(IdType id);
+
+        /// <summary>
+        /// Deletes the row if it is there; returns <c>false</c> instead of throwing when it is not.
+        /// Lets <see cref="Delete(IdType)"/> keep its STRICT contract while rollback/compensation —
+        /// the one caller that must survive running twice — gets idempotency. See the
+        /// <c>IDBService&lt;T&gt;</c> overload for the full rationale.
+        /// </summary>
+        /// <returns><c>true</c> if a row was found and deleted; <c>false</c> if none matched.</returns>
+        Task<bool> DeleteIfExists(IdType id);
+
         Task DeleteRange(IEnumerable<IdType> ids);
 
         Task<List<T>> Where(Func<T, bool> predicate);

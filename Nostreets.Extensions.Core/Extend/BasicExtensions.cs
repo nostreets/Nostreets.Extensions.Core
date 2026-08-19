@@ -3419,6 +3419,10 @@ namespace Nostreets.Extensions.Extend.Basic
         public static Dictionary<string, string> StackTraceToDictionary(this Exception ex)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
+            // ex.StackTrace is null until the exception is actually thrown; Regex.Match(null)
+            // throws. An empty result means "no frame info", which is the honest answer.
+            if (ex == null || string.IsNullOrEmpty(ex.StackTrace)) return result;
+
             Regex r = new Regex(@"at (?<namespace>.*)\.(?<class>.*)\.(?<method>.*(.*)) in (?<file>.*):line (?<line>\d*)");
             Match match = r.Match(ex.StackTrace);
 

@@ -19,9 +19,18 @@ namespace Nostreets.Extensions.DataControl.Classes
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
-            Class = Trace?["class"];
-            Line = int.Parse(Trace?["line"]);
-            Method = ex.TargetSite.NameWithParams();
+            // These reads MUST be defensive, and the reason is not theoretical.
+            // StackTraceToDictionary returns an EMPTY dictionary (never null) when its regex finds
+            // no "in <file>:line <n>" frame -- which is every exception thrown inside a NuGet-packaged
+            // assembly, because those ship without PDBs. Under the NugetRef profile that is MOST of
+            // the code. Trace?["class"] then threw KeyNotFoundException from inside the error handler,
+            // so the ORIGINAL exception was destroyed and the caller got a bare 500 with no
+            // diagnosable cause -- that is how a login-blocking failure reached dev wearing the wrong
+            // error. int.Parse on a missing key, and ex.TargetSite (null for a rethrown or
+            // reflection-invoked exception), are the same trap.
+            Class = TryTrace("class") ?? ex.TargetSite?.DeclaringType?.FullName;
+            Line = int.TryParse(TryTrace("line"), out int parsedLine) ? parsedLine : 0;
+            Method = ex.TargetSite?.NameWithParams();
         }
 
         public Error(Exception ex, string data)
@@ -31,11 +40,28 @@ namespace Nostreets.Extensions.DataControl.Classes
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
-            Class = Trace?["class"];
-            Line = int.Parse(Trace?["line"]);
-            Method = ex.TargetSite.NameWithParams();
+            // These reads MUST be defensive, and the reason is not theoretical.
+            // StackTraceToDictionary returns an EMPTY dictionary (never null) when its regex finds
+            // no "in <file>:line <n>" frame -- which is every exception thrown inside a NuGet-packaged
+            // assembly, because those ship without PDBs. Under the NugetRef profile that is MOST of
+            // the code. Trace?["class"] then threw KeyNotFoundException from inside the error handler,
+            // so the ORIGINAL exception was destroyed and the caller got a bare 500 with no
+            // diagnosable cause -- that is how a login-blocking failure reached dev wearing the wrong
+            // error. int.Parse on a missing key, and ex.TargetSite (null for a rethrown or
+            // reflection-invoked exception), are the same trap.
+            Class = TryTrace("class") ?? ex.TargetSite?.DeclaringType?.FullName;
+            Line = int.TryParse(TryTrace("line"), out int parsedLine) ? parsedLine : 0;
+            Method = ex.TargetSite?.NameWithParams();
             Data = data;
         }
+
+
+        /// <summary>
+        /// Reads a parsed stack-trace field, tolerating BOTH a null dictionary and a present-but-empty
+        /// one. Never throws: an error object that cannot be constructed hides the error it describes.
+        /// </summary>
+        private string TryTrace(string key)
+            => Trace != null && Trace.TryGetValue(key, out string value) ? value : null;
 
         public string? SessionKey { get; set; }
         public string? TransactionId { get; set; }

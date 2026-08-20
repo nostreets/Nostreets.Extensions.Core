@@ -104,12 +104,24 @@ namespace Nostreets.Extensions.Interfaces
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
-        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
-        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
-        /// case sensitivity will match more rows once it translates. [D-223] verified the three
-        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
-        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
+        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
+        /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
+        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// narrows the match.
+        /// <para>
+        /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
+        /// <c>Count(a =&gt; candidates.Contains(a.Email))</c> is correct in SQL and WRONG in memory —
+        /// it would report <c>Bob@x.com</c> as available while <c>bob@x.com</c> is live, i.e. a
+        /// duplicate live address, which is the exact harm that guard exists to prevent. It stays on
+        /// <see cref="WhereRaw"/> for that reason, not because it is complex.
+        /// </para>
+        /// <para>
+        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
+        /// there is only one path.
+        /// </para>
         /// </para>
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);
@@ -209,12 +221,24 @@ namespace Nostreets.Extensions.Interfaces
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
-        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
-        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
-        /// case sensitivity will match more rows once it translates. [D-223] verified the three
-        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
-        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
+        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
+        /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
+        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// narrows the match.
+        /// <para>
+        /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
+        /// <c>Count(a =&gt; candidates.Contains(a.Email))</c> is correct in SQL and WRONG in memory —
+        /// it would report <c>Bob@x.com</c> as available while <c>bob@x.com</c> is live, i.e. a
+        /// duplicate live address, which is the exact harm that guard exists to prevent. It stays on
+        /// <see cref="WhereRaw"/> for that reason, not because it is complex.
+        /// </para>
+        /// <para>
+        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
+        /// there is only one path.
+        /// </para>
         /// </para>
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);
@@ -316,12 +340,24 @@ namespace Nostreets.Extensions.Interfaces
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
-        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
-        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
-        /// case sensitivity will match more rows once it translates. [D-223] verified the three
-        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
-        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
+        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
+        /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
+        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// narrows the match.
+        /// <para>
+        /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
+        /// <c>Count(a =&gt; candidates.Contains(a.Email))</c> is correct in SQL and WRONG in memory —
+        /// it would report <c>Bob@x.com</c> as available while <c>bob@x.com</c> is live, i.e. a
+        /// duplicate live address, which is the exact harm that guard exists to prevent. It stays on
+        /// <see cref="WhereRaw"/> for that reason, not because it is complex.
+        /// </para>
+        /// <para>
+        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
+        /// there is only one path.
+        /// </para>
         /// </para>
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);

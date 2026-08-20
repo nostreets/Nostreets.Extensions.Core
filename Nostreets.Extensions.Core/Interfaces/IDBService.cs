@@ -78,11 +78,59 @@ namespace Nostreets.Extensions.Interfaces
 
         Task DeleteRange(IEnumerable<object> ids);
 
-        Task<List<T>> Where(Func<T, bool> predicate);
-        Task<List<T>> Where(Func<T, bool> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
+        /// <summary>
+        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.</b>
+        /// </summary>
+        /// <remarks>
+        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
+        /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
+        /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
+        /// client-side however simple the predicate is. A delegate cannot be turned back into a tree
+        /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
+        /// carry it.
+        /// <para>
+        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
+        /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
+        /// compiler finds every one of those.
+        /// </para>
+        /// <para>
+        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// expression cannot be translated, the predicate is compiled and applied in memory — the old
+        /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
+        /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
+        /// actually translated rather than assuming.
+        /// </para>
+        /// <para>
+        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
+        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
+        /// case sensitivity will match more rows once it translates. [D-223] verified the three
+        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
+        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// </para>
+        /// </remarks>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate);
+        /// <summary>
+        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// <para>
+        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
+        /// <paramref name="orderByKey"/> alone to stay in the database.
+        /// </para>
+        /// </summary>
+        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
-        Task<T> FirstOrDefault(Func<T, bool> predicate);
-        Task<int> Count(Func<T, bool> predicate = null);
+        /// <summary>
+        /// First match. Emits <c>TOP(1)</c> when the expression translates, instead of
+        /// materialising the entire filtered set to take one row.
+        /// </summary>
+        Task<T> FirstOrDefault(Expression<Func<T, bool>> predicate);
+        /// <summary><c>COUNT(*)</c> in SQL when the expression translates.</summary>
+        Task<int> Count(Expression<Func<T, bool>> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
 
@@ -98,65 +146,6 @@ namespace Nostreets.Extensions.Interfaces
         /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
-
-        /// <summary>
-        /// Runs <paramref name="predicate"/> AS SQL. The generic-parameter difference from
-        /// <see cref="Where(Func{T, bool})"/> is the whole point: <c>Queryable.Where</c> requires an
-        /// <c>Expression</c>, and given a plain <c>Func</c> the compiler binds to <c>Enumerable.Where</c>
-        /// instead — which enumerates the table, so EF issues <c>SELECT *</c> and filters in memory
-        /// however simple the predicate is.
-        /// </summary>
-        /// <remarks>
-        /// 🔑 Use this for ORDINARY predicates — comparisons, <c>&amp;&amp;</c>/<c>||</c>, <c>Contains</c>
-        /// over a local collection (becomes <c>IN</c>), null checks. This is the default worth reaching
-        /// for; <see cref="Where(Func{T, bool})"/> is the fallback, not the other way round.
-        /// 🔴 It THROWS where the <c>Func</c> version silently succeeded. Anything EF cannot translate —
-        /// a JSON deserialize, a custom helper, a C# method call over a column — raises
-        /// <c>InvalidOperationException</c> rather than quietly running in memory. That is deliberate: a
-        /// loud failure beats a hidden full-table scan. When a predicate genuinely cannot be expressed in
-        /// SQL, drop to <see cref="WhereRaw"/>.
-        /// ⚠️ A separate METHOD rather than an overload of <c>Where</c> on purpose. C# overload
-        /// resolution prefers a delegate over an expression tree for a lambda literal, so an added
-        /// overload would never be selected by existing call sites — and silently rebinding those ~197
-        /// sites would turn every untranslatable predicate into a runtime throw.
-        /// </remarks>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate);
-
-        /// <summary>
-        /// Paged counterpart to <see cref="WhereQueryable(Expression{Func{T, bool}})"/> — filters, orders
-        /// and pages IN THE DATABASE, so only the requested rows cross the wire.
-        /// </summary>
-        /// <param name="pageOffset">
-        /// A RAW ROW OFFSET, not a page index — the same contract as the <c>Func</c> overload (callers
-        /// compute <c>PageIndex * PageSize</c> themselves).
-        /// </param>
-        /// <param name="orderByKey">
-        /// Property NAME, translated via <c>EF.Property</c>. An unknown or blank key leaves the query
-        /// unordered — and SQL Server does not guarantee row order without an ORDER BY, so a paged read
-        /// with no key can return overlapping pages.
-        /// </param>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset,
-                                     string orderByKey = null, bool desc = false);
-
-        /// <summary>
-        /// <c>COUNT(*)</c> with the filter in SQL. A null predicate counts every row.
-        /// <para>
-        /// Pairs with <see cref="WhereQueryable(Expression{Func{T, bool}}, int, int, string, bool)"/> for a
-        /// paged read's total. The <c>Func</c> equivalents cost TWO full table materialisations per paged
-        /// read — one to count, one to page.
-        /// </para>
-        /// </summary>
-        Task<int> CountQueryable(Expression<Func<T, bool>> predicate = null);
-
-        /// <summary>
-        /// First match, as <c>TOP(1)</c> in SQL.
-        /// <para>
-        /// 🔴 Not equivalent to <see cref="FirstOrDefault(Func{T, bool})"/>, which is implemented as
-        /// <c>(await Where(predicate)).FirstOrDefault()</c> — it materialises the ENTIRE filtered set to
-        /// take one row.
-        /// </para>
-        /// </summary>
-        Task<T> FirstOrDefaultQueryable(Expression<Func<T, bool>> predicate);
 
         Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }
@@ -194,11 +183,59 @@ namespace Nostreets.Extensions.Interfaces
 
         Task DeleteRange(IEnumerable<IdType> ids);
 
-        Task<List<T>> Where(Func<T, bool> predicate);
-        Task<List<T>> Where(Func<T, bool> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
+        /// <summary>
+        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.</b>
+        /// </summary>
+        /// <remarks>
+        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
+        /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
+        /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
+        /// client-side however simple the predicate is. A delegate cannot be turned back into a tree
+        /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
+        /// carry it.
+        /// <para>
+        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
+        /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
+        /// compiler finds every one of those.
+        /// </para>
+        /// <para>
+        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// expression cannot be translated, the predicate is compiled and applied in memory — the old
+        /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
+        /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
+        /// actually translated rather than assuming.
+        /// </para>
+        /// <para>
+        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
+        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
+        /// case sensitivity will match more rows once it translates. [D-223] verified the three
+        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
+        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// </para>
+        /// </remarks>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate);
+        /// <summary>
+        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// <para>
+        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
+        /// <paramref name="orderByKey"/> alone to stay in the database.
+        /// </para>
+        /// </summary>
+        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
-        Task<T> FirstOrDefault(Func<T, bool> predicate);
-        Task<int> Count(Func<T, bool> predicate = null);
+        /// <summary>
+        /// First match. Emits <c>TOP(1)</c> when the expression translates, instead of
+        /// materialising the entire filtered set to take one row.
+        /// </summary>
+        Task<T> FirstOrDefault(Expression<Func<T, bool>> predicate);
+        /// <summary><c>COUNT(*)</c> in SQL when the expression translates.</summary>
+        Task<int> Count(Expression<Func<T, bool>> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
 
@@ -214,65 +251,6 @@ namespace Nostreets.Extensions.Interfaces
         /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
-
-        /// <summary>
-        /// Runs <paramref name="predicate"/> AS SQL. The generic-parameter difference from
-        /// <see cref="Where(Func{T, bool})"/> is the whole point: <c>Queryable.Where</c> requires an
-        /// <c>Expression</c>, and given a plain <c>Func</c> the compiler binds to <c>Enumerable.Where</c>
-        /// instead — which enumerates the table, so EF issues <c>SELECT *</c> and filters in memory
-        /// however simple the predicate is.
-        /// </summary>
-        /// <remarks>
-        /// 🔑 Use this for ORDINARY predicates — comparisons, <c>&amp;&amp;</c>/<c>||</c>, <c>Contains</c>
-        /// over a local collection (becomes <c>IN</c>), null checks. This is the default worth reaching
-        /// for; <see cref="Where(Func{T, bool})"/> is the fallback, not the other way round.
-        /// 🔴 It THROWS where the <c>Func</c> version silently succeeded. Anything EF cannot translate —
-        /// a JSON deserialize, a custom helper, a C# method call over a column — raises
-        /// <c>InvalidOperationException</c> rather than quietly running in memory. That is deliberate: a
-        /// loud failure beats a hidden full-table scan. When a predicate genuinely cannot be expressed in
-        /// SQL, drop to <see cref="WhereRaw"/>.
-        /// ⚠️ A separate METHOD rather than an overload of <c>Where</c> on purpose. C# overload
-        /// resolution prefers a delegate over an expression tree for a lambda literal, so an added
-        /// overload would never be selected by existing call sites — and silently rebinding those ~197
-        /// sites would turn every untranslatable predicate into a runtime throw.
-        /// </remarks>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate);
-
-        /// <summary>
-        /// Paged counterpart to <see cref="WhereQueryable(Expression{Func{T, bool}})"/> — filters, orders
-        /// and pages IN THE DATABASE, so only the requested rows cross the wire.
-        /// </summary>
-        /// <param name="pageOffset">
-        /// A RAW ROW OFFSET, not a page index — the same contract as the <c>Func</c> overload (callers
-        /// compute <c>PageIndex * PageSize</c> themselves).
-        /// </param>
-        /// <param name="orderByKey">
-        /// Property NAME, translated via <c>EF.Property</c>. An unknown or blank key leaves the query
-        /// unordered — and SQL Server does not guarantee row order without an ORDER BY, so a paged read
-        /// with no key can return overlapping pages.
-        /// </param>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset,
-                                     string orderByKey = null, bool desc = false);
-
-        /// <summary>
-        /// <c>COUNT(*)</c> with the filter in SQL. A null predicate counts every row.
-        /// <para>
-        /// Pairs with <see cref="WhereQueryable(Expression{Func{T, bool}}, int, int, string, bool)"/> for a
-        /// paged read's total. The <c>Func</c> equivalents cost TWO full table materialisations per paged
-        /// read — one to count, one to page.
-        /// </para>
-        /// </summary>
-        Task<int> CountQueryable(Expression<Func<T, bool>> predicate = null);
-
-        /// <summary>
-        /// First match, as <c>TOP(1)</c> in SQL.
-        /// <para>
-        /// 🔴 Not equivalent to <see cref="FirstOrDefault(Func{T, bool})"/>, which is implemented as
-        /// <c>(await Where(predicate)).FirstOrDefault()</c> — it materialises the ENTIRE filtered set to
-        /// take one row.
-        /// </para>
-        /// </summary>
-        Task<T> FirstOrDefaultQueryable(Expression<Func<T, bool>> predicate);
 
         Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }
@@ -312,11 +290,59 @@ namespace Nostreets.Extensions.Interfaces
 
         Task DeleteRange(IEnumerable<IdType> ids);
 
-        Task<List<T>> Where(Func<T, bool> predicate);
-        Task<List<T>> Where(Func<T, bool> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
+        /// <summary>
+        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.</b>
+        /// </summary>
+        /// <remarks>
+        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
+        /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
+        /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
+        /// client-side however simple the predicate is. A delegate cannot be turned back into a tree
+        /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
+        /// carry it.
+        /// <para>
+        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
+        /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
+        /// compiler finds every one of those.
+        /// </para>
+        /// <para>
+        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// expression cannot be translated, the predicate is compiled and applied in memory — the old
+        /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
+        /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
+        /// actually translated rather than assuming.
+        /// </para>
+        /// <para>
+        /// ⚠️ <b>One real semantic shift: string comparison.</b> In memory <c>==</c> is ordinal and
+        /// case-SENSITIVE; in SQL <c>=</c> uses the column's collation, which across this estate is
+        /// <c>SQL_Latin1_General_CP1_CI_AS</c> — case-INsensitive. A predicate that relied on ordinal
+        /// case sensitivity will match more rows once it translates. [D-223] verified the three
+        /// highest-consequence columns (username, email, phone) are all CI, so SQL's <c>=</c> already
+        /// means what <c>OrdinalIgnoreCase</c> meant there.
+        /// </para>
+        /// </remarks>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate);
+        /// <summary>
+        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// <para>
+        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
+        /// <paramref name="orderByKey"/> alone to stay in the database.
+        /// </para>
+        /// </summary>
+        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
-        Task<T> FirstOrDefault(Func<T, bool> predicate);
-        Task<int> Count(Func<T, bool> predicate = null);
+        /// <summary>
+        /// First match. Emits <c>TOP(1)</c> when the expression translates, instead of
+        /// materialising the entire filtered set to take one row.
+        /// </summary>
+        Task<T> FirstOrDefault(Expression<Func<T, bool>> predicate);
+        /// <summary><c>COUNT(*)</c> in SQL when the expression translates.</summary>
+        Task<int> Count(Expression<Func<T, bool>> predicate = null);
         Task Backup(string disk = null);
         Task<List<TResult>> QueryResults<TResult>(string query, Dictionary<string, object> parameters = null);
 
@@ -332,65 +358,6 @@ namespace Nostreets.Extensions.Interfaces
         /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
-
-        /// <summary>
-        /// Runs <paramref name="predicate"/> AS SQL. The generic-parameter difference from
-        /// <see cref="Where(Func{T, bool})"/> is the whole point: <c>Queryable.Where</c> requires an
-        /// <c>Expression</c>, and given a plain <c>Func</c> the compiler binds to <c>Enumerable.Where</c>
-        /// instead — which enumerates the table, so EF issues <c>SELECT *</c> and filters in memory
-        /// however simple the predicate is.
-        /// </summary>
-        /// <remarks>
-        /// 🔑 Use this for ORDINARY predicates — comparisons, <c>&amp;&amp;</c>/<c>||</c>, <c>Contains</c>
-        /// over a local collection (becomes <c>IN</c>), null checks. This is the default worth reaching
-        /// for; <see cref="Where(Func{T, bool})"/> is the fallback, not the other way round.
-        /// 🔴 It THROWS where the <c>Func</c> version silently succeeded. Anything EF cannot translate —
-        /// a JSON deserialize, a custom helper, a C# method call over a column — raises
-        /// <c>InvalidOperationException</c> rather than quietly running in memory. That is deliberate: a
-        /// loud failure beats a hidden full-table scan. When a predicate genuinely cannot be expressed in
-        /// SQL, drop to <see cref="WhereRaw"/>.
-        /// ⚠️ A separate METHOD rather than an overload of <c>Where</c> on purpose. C# overload
-        /// resolution prefers a delegate over an expression tree for a lambda literal, so an added
-        /// overload would never be selected by existing call sites — and silently rebinding those ~197
-        /// sites would turn every untranslatable predicate into a runtime throw.
-        /// </remarks>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate);
-
-        /// <summary>
-        /// Paged counterpart to <see cref="WhereQueryable(Expression{Func{T, bool}})"/> — filters, orders
-        /// and pages IN THE DATABASE, so only the requested rows cross the wire.
-        /// </summary>
-        /// <param name="pageOffset">
-        /// A RAW ROW OFFSET, not a page index — the same contract as the <c>Func</c> overload (callers
-        /// compute <c>PageIndex * PageSize</c> themselves).
-        /// </param>
-        /// <param name="orderByKey">
-        /// Property NAME, translated via <c>EF.Property</c>. An unknown or blank key leaves the query
-        /// unordered — and SQL Server does not guarantee row order without an ORDER BY, so a paged read
-        /// with no key can return overlapping pages.
-        /// </param>
-        Task<List<T>> WhereQueryable(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset,
-                                     string orderByKey = null, bool desc = false);
-
-        /// <summary>
-        /// <c>COUNT(*)</c> with the filter in SQL. A null predicate counts every row.
-        /// <para>
-        /// Pairs with <see cref="WhereQueryable(Expression{Func{T, bool}}, int, int, string, bool)"/> for a
-        /// paged read's total. The <c>Func</c> equivalents cost TWO full table materialisations per paged
-        /// read — one to count, one to page.
-        /// </para>
-        /// </summary>
-        Task<int> CountQueryable(Expression<Func<T, bool>> predicate = null);
-
-        /// <summary>
-        /// First match, as <c>TOP(1)</c> in SQL.
-        /// <para>
-        /// 🔴 Not equivalent to <see cref="FirstOrDefault(Func{T, bool})"/>, which is implemented as
-        /// <c>(await Where(predicate)).FirstOrDefault()</c> — it materialises the ENTIRE filtered set to
-        /// take one row.
-        /// </para>
-        /// </summary>
-        Task<T> FirstOrDefaultQueryable(Expression<Func<T, bool>> predicate);
 
         Task<List<T>> WhereRaw(string sql, Dictionary<string, object> parameters = null);
     }

@@ -11,6 +11,7 @@ namespace Nostreets.Extensions.Utilities
 {
     public class DebuggerWriter : TextWriter
     {
+        #region Properties
         /// <summary>
         /// A description of the importance of the messages.
         /// </summary>
@@ -63,6 +64,9 @@ namespace Nostreets.Extensions.Utilities
             this.isOpen = true;
         }
 
+        #endregion
+
+        #region Overridden Methods
         /// <summary>
         /// IDisposable.Dispose method
         /// </summary>
@@ -155,6 +159,7 @@ namespace Nostreets.Extensions.Utilities
         public string Category
         {
             get { return this.category; }
+        #endregion
         }
     }
 }

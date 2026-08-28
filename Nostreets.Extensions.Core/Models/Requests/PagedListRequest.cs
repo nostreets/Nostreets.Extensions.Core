@@ -13,7 +13,7 @@ namespace Nostreets.Extensions.Core.Models.Requests
         public int PageSize { get; set; }
 
         /// <summary>
-        /// In-process predicate filters (delegates). NOT serialized over the wire — for HTTP use
+        /// In-process predicate filters (delegates). not serialized over the wire — for HTTP use
         /// <see cref="SerializedFilters"/> (populate it via <see cref="AddFilter"/>); the receiving service
         /// deserializes + validates + compiles those into this list at the boundary.
         /// </summary>
@@ -32,7 +32,7 @@ namespace Nostreets.Extensions.Core.Models.Requests
         public bool OrderByDesc { get; set; } = true;
 
         /// <summary>
-        /// Custom in-process sort comparer. NOT serialized over the wire — HTTP callers sort via
+        /// Custom in-process sort comparer. not serialized over the wire — HTTP callers sort via
         /// <see cref="OrderByKey"/> / <see cref="OrderByDesc"/> only.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
@@ -41,7 +41,7 @@ namespace Nostreets.Extensions.Core.Models.Requests
 
         /// <summary>
         /// Adds a predicate filter that works BOTH in-process and over HTTP: it serializes the expression into
-        /// <see cref="SerializedFilters"/> (the wire form) AND compiles it into <see cref="Filters"/> (the
+        /// <see cref="SerializedFilters"/> (the wire form) and compiles it into <see cref="Filters"/> (the
         /// in-process form). Compiling client-side is safe — the caller owns the expression; the strict
         /// allow-list only gates INBOUND untrusted expressions on the server.
         /// </summary>

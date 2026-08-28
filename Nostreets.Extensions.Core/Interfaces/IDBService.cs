@@ -79,11 +79,11 @@ namespace Nostreets.Extensions.Interfaces
         Task DeleteRange(IEnumerable<object> ids);
 
         /// <summary>
-        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
-        /// the expression.</b>
+        /// Filters the table. Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.
         /// </summary>
         /// <remarks>
-        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
         /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
         /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
         /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
@@ -91,24 +91,24 @@ namespace Nostreets.Extensions.Interfaces
         /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
         /// carry it.
         /// <para>
-        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// Call sites do not change. A lambda literal converts to either form, so
         /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
         /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
         /// compiler finds every one of those.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// The fallback is a correctness net, not a performance one. When EF reports the
         /// expression cannot be translated, the predicate is compiled and applied in memory — the old
         /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
         /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
-        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// The fallback is not semantically transparent, and string comparison is where it
+        /// bites. In SQL, <c>=</c> and <c>IN</c> use the column's collation —
         /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
         /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
-        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// DIFFERENT rows depending on which path ran, and the fallback is the direction that silently
         /// narrows the match.
         /// <para>
         /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
@@ -118,7 +118,7 @@ namespace Nostreets.Extensions.Interfaces
         /// <see cref="WhereRaw"/> for that reason, not because it is complex.
         /// </para>
         /// <para>
-        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// The rule: if a predicate's CORRECTNESS depends on SQL collation rather than merely
         /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
         /// there is only one path.
         /// </para>
@@ -126,14 +126,14 @@ namespace Nostreets.Extensions.Interfaces
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);
         /// <summary>
-        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// Paged filter. Filters, orders and pages IN the DATABASE when the expression translates.
         /// <para>
-        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// Passing <paramref name="comparer"/> forces the in-memory path — a .NET
         /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
         /// <paramref name="orderByKey"/> alone to stay in the database.
         /// </para>
         /// </summary>
-        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        /// <param name="pageOffset">A RAW row OFFSET, not a page index.</param>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
         /// <summary>
@@ -153,9 +153,9 @@ namespace Nostreets.Extensions.Interfaces
         /// filter must run in the database.
         /// </summary>
         /// <remarks>
-        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// The SQL must project every mapped column of <typeparamref name="T"/>. A partial
         /// <c>SELECT</c> fails at materialization, not at compile time.
-        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
 
@@ -196,11 +196,11 @@ namespace Nostreets.Extensions.Interfaces
         Task DeleteRange(IEnumerable<IdType> ids);
 
         /// <summary>
-        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
-        /// the expression.</b>
+        /// Filters the table. Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.
         /// </summary>
         /// <remarks>
-        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
         /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
         /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
         /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
@@ -208,24 +208,24 @@ namespace Nostreets.Extensions.Interfaces
         /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
         /// carry it.
         /// <para>
-        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// Call sites do not change. A lambda literal converts to either form, so
         /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
         /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
         /// compiler finds every one of those.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// The fallback is a correctness net, not a performance one. When EF reports the
         /// expression cannot be translated, the predicate is compiled and applied in memory — the old
         /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
         /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
-        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// The fallback is not semantically transparent, and string comparison is where it
+        /// bites. In SQL, <c>=</c> and <c>IN</c> use the column's collation —
         /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
         /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
-        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// DIFFERENT rows depending on which path ran, and the fallback is the direction that silently
         /// narrows the match.
         /// <para>
         /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
@@ -235,7 +235,7 @@ namespace Nostreets.Extensions.Interfaces
         /// <see cref="WhereRaw"/> for that reason, not because it is complex.
         /// </para>
         /// <para>
-        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// The rule: if a predicate's CORRECTNESS depends on SQL collation rather than merely
         /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
         /// there is only one path.
         /// </para>
@@ -243,14 +243,14 @@ namespace Nostreets.Extensions.Interfaces
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);
         /// <summary>
-        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// Paged filter. Filters, orders and pages IN the DATABASE when the expression translates.
         /// <para>
-        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// Passing <paramref name="comparer"/> forces the in-memory path — a .NET
         /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
         /// <paramref name="orderByKey"/> alone to stay in the database.
         /// </para>
         /// </summary>
-        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        /// <param name="pageOffset">A RAW row OFFSET, not a page index.</param>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
         /// <summary>
@@ -270,9 +270,9 @@ namespace Nostreets.Extensions.Interfaces
         /// filter must run in the database.
         /// </summary>
         /// <remarks>
-        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// The SQL must project every mapped column of <typeparamref name="T"/>. A partial
         /// <c>SELECT</c> fails at materialization, not at compile time.
-        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
 
@@ -315,11 +315,11 @@ namespace Nostreets.Extensions.Interfaces
         Task DeleteRange(IEnumerable<IdType> ids);
 
         /// <summary>
-        /// Filters the table. <b>Tries SQL first, falls back to in-memory only if EF cannot translate
-        /// the expression.</b>
+        /// Filters the table. Tries SQL first, falls back to in-memory only if EF cannot translate
+        /// the expression.
         /// </summary>
         /// <remarks>
-        /// 🔑 The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
+        /// The parameter is <c>Expression&lt;Func&lt;T,bool&gt;&gt;</c>, not <c>Func&lt;T,bool&gt;</c>,
         /// and that single difference is what makes the SQL path possible at all. <c>Queryable.Where</c>
         /// requires an expression tree; given a plain <c>Func</c> the compiler binds to
         /// <c>Enumerable.Where</c>, which enumerates the table — so EF issues <c>SELECT *</c> and filters
@@ -327,24 +327,24 @@ namespace Nostreets.Extensions.Interfaces
         /// (the tree is discarded when the lambda is compiled at the call site), so the type has to
         /// carry it.
         /// <para>
-        /// ✅ <b>Call sites do not change.</b> A lambda literal converts to either form, so
+        /// Call sites do not change. A lambda literal converts to either form, so
         /// <c>Where(a =&gt; !a.IsArchived)</c> compiles exactly as before and now runs in the database.
         /// Only a caller passing an already-compiled <c>Func</c> variable needs an edit, and the
         /// compiler finds every one of those.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is a correctness net, not a performance one.</b> When EF reports the
+        /// The fallback is a correctness net, not a performance one. When EF reports the
         /// expression cannot be translated, the predicate is compiled and applied in memory — the old
         /// behaviour, so nothing that worked before stops working. It is silent by design, but it means
         /// a predicate calling a C# helper still costs a full table scan. If a read matters, verify it
         /// actually translated rather than assuming.
         /// </para>
         /// <para>
-        /// 🔴 <b>The fallback is NOT semantically transparent, and string comparison is where it
-        /// bites.</b> In SQL, <c>=</c> and <c>IN</c> use the column's collation —
+        /// The fallback is not semantically transparent, and string comparison is where it
+        /// bites. In SQL, <c>=</c> and <c>IN</c> use the column's collation —
         /// <c>SQL_Latin1_General_CP1_CI_AS</c> across this estate, i.e. case-INsensitive. In memory,
         /// .NET string comparison is ORDINAL, i.e. case-SENSITIVE. So the same predicate can return
-        /// DIFFERENT ROWS depending on which path ran, and the fallback is the direction that silently
+        /// DIFFERENT rows depending on which path ran, and the fallback is the direction that silently
         /// narrows the match.
         /// <para>
         /// That is not theoretical. Rewriting the BUG-67 email-uniqueness guard as
@@ -354,7 +354,7 @@ namespace Nostreets.Extensions.Interfaces
         /// <see cref="WhereRaw"/> for that reason, not because it is complex.
         /// </para>
         /// <para>
-        /// 🔑 <b>The rule:</b> if a predicate's CORRECTNESS depends on SQL collation rather than merely
+        /// The rule: if a predicate's CORRECTNESS depends on SQL collation rather than merely
         /// its speed, do not let it be fallback-eligible — put it in <see cref="WhereRaw"/>, where
         /// there is only one path.
         /// </para>
@@ -362,14 +362,14 @@ namespace Nostreets.Extensions.Interfaces
         /// </remarks>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate);
         /// <summary>
-        /// Paged filter. Filters, orders and pages IN THE DATABASE when the expression translates.
+        /// Paged filter. Filters, orders and pages IN the DATABASE when the expression translates.
         /// <para>
-        /// ⚠️ Passing <paramref name="comparer"/> forces the in-memory path — a .NET
+        /// Passing <paramref name="comparer"/> forces the in-memory path — a .NET
         /// <c>IComparer</c> has no SQL equivalent, so ordering by it cannot be translated. Order by
         /// <paramref name="orderByKey"/> alone to stay in the database.
         /// </para>
         /// </summary>
-        /// <param name="pageOffset">A RAW ROW OFFSET, not a page index.</param>
+        /// <param name="pageOffset">A RAW row OFFSET, not a page index.</param>
         Task<List<T>> Where(Expression<Func<T, bool>> predicate, int pageSize, int pageOffset, string orderByKey = null, bool desc = false, IComparer<object> comparer = null);
 
         /// <summary>
@@ -389,9 +389,9 @@ namespace Nostreets.Extensions.Interfaces
         /// filter must run in the database.
         /// </summary>
         /// <remarks>
-        /// 🔴 The SQL MUST project EVERY mapped column of <typeparamref name="T"/>. A partial
+        /// The SQL must project every mapped column of <typeparamref name="T"/>. A partial
         /// <c>SELECT</c> fails at materialization, not at compile time.
-        /// 🔴 Pass values via <paramref name="parameters"/>. NEVER interpolate them into
+        /// Pass values via <paramref name="parameters"/>. NEVER interpolate them into
         /// <paramref name="sql"/> — that is an injection hole, and this method cannot detect it.
         /// </remarks>
 

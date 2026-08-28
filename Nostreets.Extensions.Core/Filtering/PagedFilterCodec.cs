@@ -17,7 +17,7 @@ namespace Nostreets.Extensions.Core.Filtering
     /// member access that the server allow-list would reject), then the expression is text-serialized.
     ///
     /// Inbound (server): each string is deserialized, run through the strict <see cref="PagedFilterValidator"/>
-    /// allow-list, and ONLY then compiled — an unvalidated tree is never compiled or invoked. This is the gate
+    /// allow-list, and only then compiled — an unvalidated tree is never compiled or invoked. This is the gate
     /// that makes accepting a serialized expression over the wire safe (it would otherwise be an RCE vector).
     /// </summary>
     public static class PagedFilterCodec
@@ -43,14 +43,14 @@ namespace Nostreets.Extensions.Core.Filtering
         /// Same deserialize-and-validate as <see cref="CompileValidated{T}"/>, but hands back the
         /// EXPRESSION TREES instead of compiled delegates.
         /// <para>
-        /// 🔑 Why both exist: a compiled <c>Func</c> can never be translated to SQL, and compiling is
+        /// Why both exist: a compiled <c>Func</c> can never be translated to SQL, and compiling is
         /// irreversible - the tree is gone. A paged read that composes its filters from
         /// <see cref="CompileValidated{T}"/> is therefore forced to evaluate IN MEMORY, which means
         /// loading the whole table to return one page. Composing from these keeps the predicate
         /// translatable end to end.
         /// </para>
         /// <para>
-        /// ⚠️ The validation is identical and is NOT optional - these expressions arrive over the wire,
+        /// The validation is identical and is not optional - these expressions arrive over the wire,
         /// so <c>PagedFilterValidator</c>'s allow-list is what stops a caller sending an arbitrary
         /// expression tree for the server to evaluate. Returning trees rather than delegates does not
         /// relax that; it only defers compilation to EF, or to the caller if it has to fall back.

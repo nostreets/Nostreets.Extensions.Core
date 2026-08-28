@@ -9,15 +9,15 @@ namespace Nostreets.Extensions.Core.Helpers.Data
     /// Combines predicate expressions while keeping them TRANSLATABLE.
     ///
     /// <para>
-    /// 🔑 The obvious version does not work. <c>a =&gt; left(a) &amp;&amp; right(a)</c> compiles, but the
+    /// The obvious version does not work. <c>a =&gt; left(a) &amp;&amp; right(a)</c> compiles, but the
     /// tree it produces contains <c>Invoke</c> nodes, and EF cannot translate an invocation of one
     /// lambda from inside another — so the whole query silently falls back to an in-memory scan, which
     /// is the exact cost composing filters is meant to avoid. Splicing the BODIES together under one
-    /// shared parameter is what keeps the result a plain <c>WHERE … AND …</c>.
+    /// shared parameter is what keeps the result a plain <c>WHERE … and …</c>.
     /// </para>
     ///
     /// <para>
-    /// ⚠️ Two independently-written lambdas have DIFFERENT <see cref="ParameterExpression"/> instances
+    /// Two independently-written lambdas have DIFFERENT <see cref="ParameterExpression"/> instances
     /// even when both are named <c>a</c> — parameters match by reference, not by name. Splicing without
     /// rebinding produces a tree referencing a parameter that is not in scope, which throws at compile
     /// time rather than returning wrong rows. That is why the rewrite below exists.
@@ -26,7 +26,7 @@ namespace Nostreets.Extensions.Core.Helpers.Data
     public static class PredicateComposer
     {
         /// <summary>
-        /// <paramref name="left"/> AND <paramref name="right"/>, as one expression over one parameter.
+        /// <paramref name="left"/> and <paramref name="right"/>, as one expression over one parameter.
         /// A null operand is treated as "no constraint" and the other side is returned unchanged.
         /// </summary>
         public static Expression<Func<T, bool>> AndAlso<T>(Expression<Func<T, bool>> left,
@@ -43,7 +43,7 @@ namespace Nostreets.Extensions.Core.Helpers.Data
         }
 
         /// <summary>
-        /// Folds every predicate together with AND. An empty or all-null sequence returns
+        /// Folds every predicate together with and. An empty or all-null sequence returns
         /// <paramref name="seed"/> unchanged, so a caller with no filters pays nothing.
         /// </summary>
         public static Expression<Func<T, bool>> AndAll<T>(Expression<Func<T, bool>> seed,

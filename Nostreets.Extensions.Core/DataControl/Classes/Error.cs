@@ -19,12 +19,12 @@ namespace Nostreets.Extensions.DataControl.Classes
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
-            // These reads MUST be defensive, and the reason is not theoretical.
+            // These reads must be defensive, and the reason is not theoretical.
             // StackTraceToDictionary returns an EMPTY dictionary (never null) when its regex finds
             // no "in <file>:line <n>" frame -- which is every exception thrown inside a NuGet-packaged
             // assembly, because those ship without PDBs. Under the NugetRef profile that is MOST of
             // the code. Trace?["class"] then threw KeyNotFoundException from inside the error handler,
-            // so the ORIGINAL exception was destroyed and the caller got a bare 500 with no
+            // so the original exception was destroyed and the caller got a bare 500 with no
             // diagnosable cause -- that is how a login-blocking failure reached dev wearing the wrong
             // error. int.Parse on a missing key, and ex.TargetSite (null for a rethrown or
             // reflection-invoked exception), are the same trap.
@@ -40,12 +40,12 @@ namespace Nostreets.Extensions.DataControl.Classes
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
-            // These reads MUST be defensive, and the reason is not theoretical.
+            // These reads must be defensive, and the reason is not theoretical.
             // StackTraceToDictionary returns an EMPTY dictionary (never null) when its regex finds
             // no "in <file>:line <n>" frame -- which is every exception thrown inside a NuGet-packaged
             // assembly, because those ship without PDBs. Under the NugetRef profile that is MOST of
             // the code. Trace?["class"] then threw KeyNotFoundException from inside the error handler,
-            // so the ORIGINAL exception was destroyed and the caller got a bare 500 with no
+            // so the original exception was destroyed and the caller got a bare 500 with no
             // diagnosable cause -- that is how a login-blocking failure reached dev wearing the wrong
             // error. int.Parse on a missing key, and ex.TargetSite (null for a rethrown or
             // reflection-invoked exception), are the same trap.

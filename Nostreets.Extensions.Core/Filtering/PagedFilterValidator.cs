@@ -5,12 +5,12 @@ using System.Linq.Expressions;
 namespace Nostreets.Extensions.Core.Filtering
 {
     /// <summary>
-    /// Strict default-deny validator for an inbound, untrusted filter expression, run BEFORE it is compiled
+    /// Strict default-deny validator for an inbound, untrusted filter expression, run before it is compiled
     /// and invoked server-side. Walks the tree and throws <see cref="PagedFilterValidationException"/> on ANY
     /// node not on the allow-list — the gate against arbitrary-code execution from a crafted serialized
     /// expression (Serialize.Linq can reconstruct arbitrary trees; this is what makes that safe).
     ///
-    /// Allows ONLY: the entity parameter; property/field access rooted at that parameter; constants;
+    /// Allows only: the entity parameter; property/field access rooted at that parameter; constants;
     /// comparison / logical / boolean operators; <c>Not</c> and built-in <c>Convert</c>; and a small set of
     /// safe <see cref="string"/> methods. Everything else — arbitrary method calls, member access off a
     /// non-parameter target, object construction, type tests, indexers, etc. — is rejected.

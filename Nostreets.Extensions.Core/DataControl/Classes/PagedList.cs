@@ -6,15 +6,15 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
     /// One page of results plus the totals a pager needs.
     ///
     /// <para>
-    /// 🔴 <b>This type must round-trip over the wire, and that is not automatic.</b> Its constructor
+    /// This type must round-trip over the wire, and that is not automatic. Its constructor
     /// parameter is named <c>items</c> ON PURPOSE: both Newtonsoft and System.Text.Json deserialize a
     /// type with no parameterless constructor by matching JSON property names to CONSTRUCTOR PARAMETER
     /// names. The parameter used to be called <c>data</c>, which matches no property — so the serializer
-    /// silently passed <b>null</b> and every deserialized page came back with <c>Items == null</c>.
+    /// silently passed null and every deserialized page came back with <c>Items == null</c>.
     /// </para>
     ///
     /// <para>
-    /// ⚠️ That failure is silent and lands far from its cause. Nothing throws at deserialization; the
+    /// That failure is silent and lands far from its cause. Nothing throws at deserialization; the
     /// page simply arrives empty-but-not-empty, and the crash surfaces later as
     /// <c>ArgumentNullException: Value cannot be null. (Parameter 'source')</c> from whatever LINQ or
     /// grid renders it. It broke the User Management page on dev on 2026-08-20 and read as a UI bug.
@@ -22,7 +22,7 @@ namespace Nostreets.Extensions.Core.DataControl.Classes
     /// </para>
     ///
     /// <para>
-    /// 🔑 <b>Rename these parameters and you break the wire contract again</b>, with a clean build and
+    /// Rename these parameters and you break the wire contract again, with a clean build and
     /// green unit tests. Keep every constructor parameter name equal to the property it fills.
     /// </para>
     /// </summary>

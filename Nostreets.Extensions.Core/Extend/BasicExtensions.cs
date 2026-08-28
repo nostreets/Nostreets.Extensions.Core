@@ -4209,7 +4209,7 @@ namespace Nostreets.Extensions.Extend.Basic
                 ReferenceLoopHandling = ignoreReferenceLoopHandling ? ReferenceLoopHandling.Ignore : ReferenceLoopHandling.Serialize,
                 // Force every collection property to be REPLACED (a fresh instance built from the JSON
                 // array) rather than REUSED (where Newtonsoft calls Add() on whatever the constructor
-                // already initialised). Without this, types that expose both an IList<T> property AND
+                // already initialised). Without this, types that expose both an IList<T> property and
                 // a sibling string-bridge property over the same backing list -- e.g. Personnel exposing
                 // both `Highlights` (SerializedList<string>) and `SerializedHighlights` (string mirror
                 // of Highlights.Text) -- end up populated twice during the round-trip: once when the

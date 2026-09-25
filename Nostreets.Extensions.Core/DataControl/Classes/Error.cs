@@ -15,7 +15,7 @@ namespace Nostreets.Extensions.DataControl.Classes
         public Error(Exception ex)
         {
             ErrorMessage = CombinedMessage(ex);
-            DateCreated = DateTime.Now;
+            DateCreated = DateTime.UtcNow;
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
@@ -36,7 +36,7 @@ namespace Nostreets.Extensions.DataControl.Classes
         public Error(Exception ex, string data)
         {
             ErrorMessage = CombinedMessage(ex);
-            DateCreated = DateTime.Now;
+            DateCreated = DateTime.UtcNow;
             Source = ex.Source;
             HelpLink = ex.HelpLink;
             Trace = ex.StackTraceToDictionary();
